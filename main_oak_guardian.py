@@ -416,10 +416,12 @@ def main():
             fps=args.fps,
         )
 
+        # IMPORTANT:
+        # In DepthAI v3, createOutputQueue() must be called BEFORE pipeline.start().
+        rgb_queue = cam_out.createOutputQueue(maxSize=4, blocking=False)
+
         print("[OAK] Pipeline created.")
         pipeline.start()
-
-        rgb_queue = cam_out.createOutputQueue(maxSize=4, blocking=False)
 
         while pipeline.isRunning():
             frame_msg = rgb_queue.tryGet()
@@ -432,6 +434,7 @@ def main():
                 continue
 
             frame = frame_msg.getCvFrame()
+
             now = time.time()
             elapsed = now - enrollment_start_time
 
