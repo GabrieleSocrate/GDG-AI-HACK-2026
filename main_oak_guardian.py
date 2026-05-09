@@ -168,7 +168,7 @@ def save_owner_galleries(body_embeddings, face_embeddings):
         print(f"Saved FACE embeddings: {len(face_gallery)}")
         print(f"Face gallery path: {OWNER_FACE_GALLERY_PATH}")
     else:
-        print("[WARNING] No face embeddings collected. System will use OSNet only.")
+        print("[WARNING] No ArcFace embeddings collected. System will use OSNet only.")
 
     print()
 
@@ -268,12 +268,15 @@ def get_osnet_embedding(osnet_model, crop_bgr, device):
 
 def load_arcface_model():
     """
-    Loads InsightFace FaceAnalysis, which provides ArcFace-style face embeddings.
-    CPU is used for safer demo compatibility.
+    Loads InsightFace with detection + recognition modules.
+
+    FaceAnalysis is the wrapper.
+    The 'recognition' module is the actual ArcFace-style face recognition model.
     """
 
     app = FaceAnalysis(
-        name="buffalo_s",
+        name="buffalo_l",
+        allowed_modules=["detection", "recognition"],
         providers=["CPUExecutionProvider"],
     )
 
@@ -282,12 +285,25 @@ def load_arcface_model():
         det_size=(640, 640),
     )
 
+    loaded_modules = list(app.models.keys())
+    print(f"[ARCFACE] Loaded InsightFace modules: {loaded_modules}")
+
+    if "recognition" not in app.models:
+        raise RuntimeError(
+            "ArcFace/face recognition model was NOT loaded. "
+            "Only face detection may be available."
+        )
+
+    print("[ARCFACE] Face recognition model loaded correctly.")
+    print(f"[ARCFACE] Recognition model object: {app.models['recognition']}")
+
     return app
 
 
 def detect_arcface_faces(arcface_model, frame):
     """
-    Detects faces and returns normalized ArcFace embeddings.
+    Detects faces and returns normalized ArcFace face-recognition embeddings.
+    If no recognition embedding is available, the face is skipped.
     """
 
     faces_raw = arcface_model.get(frame)
@@ -306,24 +322,34 @@ def detect_arcface_faces(arcface_model, frame):
         if x2 <= x1 or y2 <= y1:
             continue
 
-        if hasattr(face, "normed_embedding"):
+        embedding = None
+
+        if hasattr(face, "normed_embedding") and face.normed_embedding is not None:
             embedding = np.asarray(face.normed_embedding, dtype=np.float32)
-        else:
+
+        elif hasattr(face, "embedding") and face.embedding is not None:
             embedding = l2_normalize(face.embedding)
+
+        if embedding is None:
+            print("[ARCFACE WARNING] Face detected but no recognition embedding found.")
+            continue
+
+        embedding = l2_normalize(embedding)
 
         faces.append(
             {
                 "bbox": (x1, y1, x2, y2),
-                "embedding": l2_normalize(embedding),
+                "embedding": embedding,
             }
         )
 
     return faces
 
 
-def face_belongs_to_person(face_bbox, person_bbox):
+def face_belongs_to_person(face_bbox, person_bbox, tolerance=80):
     """
-    Associates a face to a person if the face center is inside the person bbox.
+    Associates a face to a person if the face center is inside,
+    or close to, the person bbox.
     """
 
     fx1, fy1, fx2, fy2 = face_bbox
@@ -331,6 +357,11 @@ def face_belongs_to_person(face_bbox, person_bbox):
 
     face_cx = int((fx1 + fx2) / 2)
     face_cy = int((fy1 + fy2) / 2)
+
+    px1 -= tolerance
+    py1 -= tolerance
+    px2 += tolerance
+    py2 += tolerance
 
     return px1 <= face_cx <= px2 and py1 <= face_cy <= py2
 
@@ -553,6 +584,7 @@ def draw_face_box(frame, face_bbox, text="ArcFace"):
 def main():
     args = parse_args()
 
+    print("### RUNNING VERSION: OSNET + REAL ARCFACE FUSION ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
@@ -648,6 +680,16 @@ def main():
 
             persons, laptops = get_yolo_detections(yolo_model, frame)
             faces = detect_arcface_faces(arcface_model, frame)
+
+            cv2.putText(
+                frame,
+                f"ArcFace faces: {len(faces)}",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (255, 255, 255),
+                2,
+            )
 
             for face in faces:
                 draw_face_box(frame, face["bbox"], "ArcFace")
@@ -875,7 +917,7 @@ def main():
                         cv2.putText(
                             frame,
                             "ALARM: UNKNOWN TOUCHING LAPTOP",
-                            (20, 80),
+                            (20, 120),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.9,
                             (0, 0, 255),
@@ -895,7 +937,7 @@ def main():
                     cv2.putText(
                         frame,
                         f"UNKNOWN NEAR LAPTOP: {unknown_near_duration:.1f}s",
-                        (20, 120),
+                        (20, 160),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.8,
                         (0, 165, 255),
@@ -913,7 +955,7 @@ def main():
                         cv2.putText(
                             frame,
                             "ALARM: UNKNOWN LURKER NEAR LAPTOP",
-                            (20, 160),
+                            (20, 200),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.9,
                             (0, 0, 255),
