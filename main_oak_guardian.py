@@ -419,10 +419,10 @@ def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
 def main():
     args = parse_args()
 
-    print(f"[ARGS] enrollment_seconds={args.enrollment_seconds}")
-    print(f"[ARGS] threshold={args.threshold}")
-    print(f"[ARGS] guard_px={args.guard_px}")
-    print(f"[ARGS] contact_px={args.contact_px}")
+    print(f"[DEBUG] USING enrollment_seconds={args.enrollment_seconds}")
+    print(f"[DEBUG] USING threshold={args.threshold}")
+    print(f"[DEBUG] USING guard_px={args.guard_px}")
+    print(f"[DEBUG] USING contact_px={args.contact_px}")
 
     clear_owner_data()
 
@@ -465,7 +465,7 @@ def main():
     last_alarm_time = -999.0
     alarm_cooldown_seconds = 3.0
 
-    print("[OWNER ENROLLMENT WILL START WHEN CAMERA STREAM STARTS]")
+    print("[OWNER ENROLLMENT WAITING FOR FIRST FRAME]")
     print(f"Enrollment duration: {args.enrollment_seconds} seconds")
     print("Only the owner should be visible during this phase.")
     print("Move slowly: front, side, seated, standing, near the laptop.\n")
@@ -486,10 +486,9 @@ def main():
         print("[OAK] Pipeline created.")
         pipeline.start()
 
-        # Timer starts here, after the camera pipeline has actually started.
-        enrollment_start_time = time.time()
-
-        print("[OWNER ENROLLMENT STARTED]\n")
+        # IMPORTANT:
+        # Timer starts only when the first real frame is received.
+        enrollment_start_time = None
 
         while pipeline.isRunning():
             frame_msg = rgb_queue.tryGet()
@@ -502,6 +501,10 @@ def main():
                 continue
 
             frame = frame_msg.getCvFrame()
+
+            if enrollment_start_time is None:
+                enrollment_start_time = time.time()
+                print("[OWNER ENROLLMENT STARTED FROM FIRST FRAME]\n")
 
             now = time.time()
             elapsed = now - enrollment_start_time
