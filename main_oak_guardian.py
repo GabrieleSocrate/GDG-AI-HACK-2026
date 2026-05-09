@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 import time
+import shutil
 import cv2
 import numpy as np
 import torch
@@ -26,6 +27,24 @@ OWNER_GALLERY_PATH = OWNER_DIR / "owner_gallery.npy"
 OWNER_CENTROID_PATH = OWNER_DIR / "owner_centroid.npy"
 
 
+def clear_owner_data():
+    """
+    Clears previous owner embeddings before a new enrollment phase.
+    This ensures that only the current owner's embeddings are used.
+    """
+
+    if OWNER_DIR.exists() and any(OWNER_DIR.iterdir()):
+        print(f"[OWNER DATA] Clearing existing data in {OWNER_DIR}")
+
+        for item in OWNER_DIR.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+
+    OWNER_DIR.mkdir(parents=True, exist_ok=True)
+
+
 # ---------------------------------------------------------
 # ARGUMENTS
 # ---------------------------------------------------------
@@ -36,7 +55,7 @@ def parse_args():
     parser.add_argument(
         "--enrollment_seconds",
         type=float,
-        default=25.0,
+        default=30.0,
         help="First N seconds are used to save owner embeddings.",
     )
 
@@ -145,12 +164,11 @@ def save_owner_gallery(owner_embeddings):
 def match_owner(embedding, owner_gallery, threshold):
     """
     Compares a new embedding with all saved owner embeddings.
-    Final score = mean cosine similarity across the full owner gallery.
+    Final score = average cosine similarity across all owner embeddings.
     """
 
     embedding = l2_normalize(embedding)
 
-    # Cosine similarity with all saved owner embeddings.
     scores = owner_gallery @ embedding
 
     mean_score = float(np.mean(scores))
@@ -364,17 +382,17 @@ def draw_status(frame, text, color=(255, 255, 255)):
 
 def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
     """
-    Draws a line between the person and the protected laptop.
-    Distance is currently in pixels, not real meters.
+    Draws a visual line between the person and the protected laptop.
+    The distance is currently measured in pixels.
     """
 
     person_center = bbox_center(person_bbox)
     laptop_center = bbox_center(laptop_bbox)
 
     if identity == "OWNER":
-        color = (0, 255, 0)      # green
+        color = (0, 255, 0)
     else:
-        color = (0, 0, 255)      # red
+        color = (0, 0, 255)
 
     cv2.line(frame, person_center, laptop_center, color, 2)
 
@@ -402,11 +420,14 @@ def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
 def main():
     args = parse_args()
 
+    clear_owner_data()
+
     print(f"[DEVICE] Running YOLO/OSNet on laptop: {args.device}")
     print("[INFO] Input is LIVE RGB stream from OAK camera.")
     print("[INFO] YOLO detects persons and laptops.")
     print("[INFO] OSNet performs owner re-identification.")
-    print("[INFO] Matching score = mean cosine similarity across all owner embeddings.\n")
+    print("[INFO] Matching score = mean cosine similarity across all owner embeddings.")
+    print("[INFO] Previous owner embeddings were cleared at startup.\n")
 
     yolo_model = YOLO("yolov8n.pt")
     osnet_model = load_osnet(args.device)
@@ -432,14 +453,11 @@ def main():
     owner_centroid = None
     enrollment_done = False
 
-    # Laptop memory
     last_laptop_bbox = None
     protected_laptop_bbox = None
 
-    # Lurker logic
     unknown_near_start_time = None
 
-    # Alarm cooldown to avoid beeping every frame
     last_alarm_time = -999.0
     alarm_cooldown_seconds = 3.0
 
@@ -483,7 +501,6 @@ def main():
 
             persons, laptops = get_yolo_detections(yolo_model, frame)
 
-            # Use the largest detected laptop as the protected computer.
             current_laptop = laptops[0] if len(laptops) > 0 else None
 
             if current_laptop is not None:
@@ -495,7 +512,6 @@ def main():
 
             laptop_bbox_for_logic = last_laptop_bbox
 
-            # Draw laptop and guard area.
             if laptop_bbox_for_logic is not None:
                 guard_bbox = expand_bbox(
                     laptop_bbox_for_logic,
@@ -528,7 +544,6 @@ def main():
                     f"{args.enrollment_seconds:.1f}s"
                 )
 
-                # During enrollment, use only the largest detected person.
                 if len(persons) > 0:
                     owner_person = persons[0]
                     x1, y1, x2, y2 = owner_person["bbox"]
@@ -606,7 +621,6 @@ def main():
                         f"min={min_score:.3f}"
                     )
 
-                    # If no laptop has ever been detected, cannot apply asset logic.
                     if laptop_bbox_for_logic is None:
                         continue
 
@@ -615,7 +629,6 @@ def main():
                         laptop_bbox_for_logic,
                     )
 
-                    # Draw line between person and laptop for both OWNER and UNKNOWN.
                     draw_distance_line(
                         frame=frame,
                         person_bbox=person["bbox"],
@@ -655,11 +668,7 @@ def main():
                     if near_laptop:
                         any_unknown_near_laptop = True
 
-                    # -------------------------------------------------
-                    # ALARM CASE 1:
-                    # UNKNOWN touches / takes the laptop.
-                    # -------------------------------------------------
-
+                    # ALARM CASE 1: UNKNOWN touches / takes the laptop.
                     if touching_laptop:
                         if now - last_alarm_time >= alarm_cooldown_seconds:
                             trigger_alarm("UNKNOWN person is touching the laptop.")
@@ -675,11 +684,7 @@ def main():
                             3,
                         )
 
-                # -----------------------------------------------------
-                # ALARM CASE 2:
-                # UNKNOWN stays near the laptop for more than N seconds.
-                # -----------------------------------------------------
-
+                # ALARM CASE 2: UNKNOWN stays near the laptop.
                 if any_unknown_near_laptop:
                     if unknown_near_start_time is None:
                         unknown_near_start_time = now
