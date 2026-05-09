@@ -382,8 +382,8 @@ def draw_status(frame, text, color=(255, 255, 255)):
 
 def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
     """
-    Draws a visual line between the person and the protected laptop.
-    The distance is currently measured in pixels.
+    Draws a line between the person and the protected laptop.
+    Distance is currently in pixels.
     """
 
     person_center = bbox_center(person_bbox)
@@ -395,7 +395,6 @@ def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
         color = (0, 0, 255)
 
     cv2.line(frame, person_center, laptop_center, color, 2)
-
     cv2.circle(frame, person_center, 5, color, -1)
     cv2.circle(frame, laptop_center, 5, (255, 0, 0), -1)
 
@@ -419,6 +418,11 @@ def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
 
 def main():
     args = parse_args()
+
+    print(f"[ARGS] enrollment_seconds={args.enrollment_seconds}")
+    print(f"[ARGS] threshold={args.threshold}")
+    print(f"[ARGS] guard_px={args.guard_px}")
+    print(f"[ARGS] contact_px={args.contact_px}")
 
     clear_owner_data()
 
@@ -461,10 +465,8 @@ def main():
     last_alarm_time = -999.0
     alarm_cooldown_seconds = 3.0
 
-    enrollment_start_time = time.time()
-
-    print("[OWNER ENROLLMENT STARTED]")
-    print(f"First {args.enrollment_seconds} seconds are used for owner enrollment.")
+    print("[OWNER ENROLLMENT WILL START WHEN CAMERA STREAM STARTS]")
+    print(f"Enrollment duration: {args.enrollment_seconds} seconds")
     print("Only the owner should be visible during this phase.")
     print("Move slowly: front, side, seated, standing, near the laptop.\n")
 
@@ -483,6 +485,11 @@ def main():
 
         print("[OAK] Pipeline created.")
         pipeline.start()
+
+        # Timer starts here, after the camera pipeline has actually started.
+        enrollment_start_time = time.time()
+
+        print("[OWNER ENROLLMENT STARTED]\n")
 
         while pipeline.isRunning():
             frame_msg = rgb_queue.tryGet()
