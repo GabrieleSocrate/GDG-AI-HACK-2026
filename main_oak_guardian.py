@@ -36,15 +36,15 @@ def parse_args():
     parser.add_argument(
         "--enrollment_seconds",
         type=float,
-        default=10.0,
+        default=25.0,
         help="First N seconds are used to save owner embeddings.",
     )
 
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.80,
-        help="Cosine similarity threshold for OWNER / UNKNOWN.",
+        default=0.70,
+        help="Mean cosine similarity threshold for OWNER / UNKNOWN.",
     )
 
     parser.add_argument(
@@ -143,14 +143,23 @@ def save_owner_gallery(owner_embeddings):
 
 
 def match_owner(embedding, owner_gallery, threshold):
+    """
+    Compares a new embedding with all saved owner embeddings.
+    Final score = mean cosine similarity across the full owner gallery.
+    """
+
     embedding = l2_normalize(embedding)
 
+    # Cosine similarity with all saved owner embeddings.
     scores = owner_gallery @ embedding
-    best_score = float(np.max(scores))
 
-    is_owner = best_score >= threshold
+    mean_score = float(np.mean(scores))
+    max_score = float(np.max(scores))
+    min_score = float(np.min(scores))
 
-    return is_owner, best_score
+    is_owner = mean_score >= threshold
+
+    return is_owner, mean_score, max_score, min_score
 
 
 # ---------------------------------------------------------
@@ -335,7 +344,7 @@ def draw_label(frame, bbox, text, color):
         text,
         (x1, max(25, y1 - 10)),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
+        0.65,
         color,
         2,
     )
@@ -353,6 +362,39 @@ def draw_status(frame, text, color=(255, 255, 255)):
     )
 
 
+def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
+    """
+    Draws a line between the person and the protected laptop.
+    Distance is currently in pixels, not real meters.
+    """
+
+    person_center = bbox_center(person_bbox)
+    laptop_center = bbox_center(laptop_bbox)
+
+    if identity == "OWNER":
+        color = (0, 255, 0)      # green
+    else:
+        color = (0, 0, 255)      # red
+
+    cv2.line(frame, person_center, laptop_center, color, 2)
+
+    cv2.circle(frame, person_center, 5, color, -1)
+    cv2.circle(frame, laptop_center, 5, (255, 0, 0), -1)
+
+    mid_x = int((person_center[0] + laptop_center[0]) / 2)
+    mid_y = int((person_center[1] + laptop_center[1]) / 2)
+
+    cv2.putText(
+        frame,
+        f"{distance_px:.1f}px",
+        (mid_x, mid_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        color,
+        2,
+    )
+
+
 # ---------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------
@@ -363,7 +405,8 @@ def main():
     print(f"[DEVICE] Running YOLO/OSNet on laptop: {args.device}")
     print("[INFO] Input is LIVE RGB stream from OAK camera.")
     print("[INFO] YOLO detects persons and laptops.")
-    print("[INFO] OSNet performs owner re-identification.\n")
+    print("[INFO] OSNet performs owner re-identification.")
+    print("[INFO] Matching score = mean cosine similarity across all owner embeddings.\n")
 
     yolo_model = YOLO("yolov8n.pt")
     osnet_model = load_osnet(args.device)
@@ -404,7 +447,8 @@ def main():
 
     print("[OWNER ENROLLMENT STARTED]")
     print(f"First {args.enrollment_seconds} seconds are used for owner enrollment.")
-    print("Only the owner should be visible during this phase.\n")
+    print("Only the owner should be visible during this phase.")
+    print("Move slowly: front, side, seated, standing, near the laptop.\n")
 
     with dai.Pipeline(oak_device) as pipeline:
         print("[OAK] Creating live camera pipeline...")
@@ -416,8 +460,7 @@ def main():
             fps=args.fps,
         )
 
-        # IMPORTANT:
-        # In DepthAI v3, createOutputQueue() must be called BEFORE pipeline.start().
+        # Important: output queue must be created before pipeline.start().
         rgb_queue = cam_out.createOutputQueue(maxSize=4, blocking=False)
 
         print("[OAK] Pipeline created.")
@@ -440,7 +483,7 @@ def main():
 
             persons, laptops = get_yolo_detections(yolo_model, frame)
 
-            # Use the largest detected laptop as the protected computer
+            # Use the largest detected laptop as the protected computer.
             current_laptop = laptops[0] if len(laptops) > 0 else None
 
             if current_laptop is not None:
@@ -452,7 +495,7 @@ def main():
 
             laptop_bbox_for_logic = last_laptop_bbox
 
-            # Draw laptop and guard area
+            # Draw laptop and guard area.
             if laptop_bbox_for_logic is not None:
                 guard_bbox = expand_bbox(
                     laptop_bbox_for_logic,
@@ -536,7 +579,7 @@ def main():
 
                     embedding = get_osnet_embedding(osnet_model, crop, args.device)
 
-                    is_owner, score = match_owner(
+                    is_owner, mean_score, max_score, min_score = match_owner(
                         embedding,
                         owner_gallery,
                         threshold=args.threshold,
@@ -549,20 +592,36 @@ def main():
                         identity = "UNKNOWN"
                         color = (0, 0, 255)
 
-                    label = f"{identity} | score={score:.3f}"
+                    label = (
+                        f"{identity} | mean={mean_score:.3f} "
+                        f"max={max_score:.3f}"
+                    )
+
                     draw_label(frame, person["bbox"], label, color)
 
-                    # Skip all alarm logic for the owner
-                    if is_owner:
-                        continue
+                    print(
+                        f"[RE-ID] {identity} | "
+                        f"mean={mean_score:.3f} | "
+                        f"max={max_score:.3f} | "
+                        f"min={min_score:.3f}"
+                    )
 
-                    # If no laptop has ever been detected, cannot apply asset logic
+                    # If no laptop has ever been detected, cannot apply asset logic.
                     if laptop_bbox_for_logic is None:
                         continue
 
                     distance_px = bbox_distance_px(
                         person["bbox"],
                         laptop_bbox_for_logic,
+                    )
+
+                    # Draw line between person and laptop for both OWNER and UNKNOWN.
+                    draw_distance_line(
+                        frame=frame,
+                        person_bbox=person["bbox"],
+                        laptop_bbox=laptop_bbox_for_logic,
+                        distance_px=distance_px,
+                        identity=identity,
                     )
 
                     person_center = bbox_center(person["bbox"])
@@ -579,9 +638,6 @@ def main():
 
                     touching_laptop = distance_px <= args.contact_px
 
-                    if near_laptop:
-                        any_unknown_near_laptop = True
-
                     cv2.putText(
                         frame,
                         f"dist_to_laptop={distance_px:.1f}px",
@@ -592,9 +648,16 @@ def main():
                         2,
                     )
 
+                    # Owner is visualized but never triggers the alarm.
+                    if is_owner:
+                        continue
+
+                    if near_laptop:
+                        any_unknown_near_laptop = True
+
                     # -------------------------------------------------
                     # ALARM CASE 1:
-                    # UNKNOWN touches / takes the laptop
+                    # UNKNOWN touches / takes the laptop.
                     # -------------------------------------------------
 
                     if touching_laptop:
@@ -614,7 +677,7 @@ def main():
 
                 # -----------------------------------------------------
                 # ALARM CASE 2:
-                # UNKNOWN stays near the laptop for more than 5 seconds
+                # UNKNOWN stays near the laptop for more than N seconds.
                 # -----------------------------------------------------
 
                 if any_unknown_near_laptop:
