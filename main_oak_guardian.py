@@ -70,7 +70,7 @@ def parse_args():
         "--fused_threshold",
         type=float,
         default=0.65,
-        help="Threshold when OSNet and ArcFace scores are averaged.",
+        help="Threshold when OSNet and Face Recognition scores are averaged.",
     )
 
     parser.add_argument(
@@ -168,7 +168,7 @@ def save_owner_galleries(body_embeddings, face_embeddings):
         print(f"Saved FACE embeddings: {len(face_gallery)}")
         print(f"Face gallery path: {OWNER_FACE_GALLERY_PATH}")
     else:
-        print("[WARNING] No ArcFace embeddings collected. System will use OSNet only.")
+        print("[WARNING] No face-recognition embeddings collected. System will use OSNet only.")
 
     print()
 
@@ -192,17 +192,17 @@ def mean_similarity_score(embedding, gallery):
 
 def fuse_scores(body_score, face_score, body_threshold, fused_threshold):
     """
-    If ArcFace is available:
-        final_score = mean(OSNet body score, ArcFace face score)
+    If face recognition is available:
+        final_score = mean(OSNet body score, Face Recognition score)
 
-    If ArcFace is NOT available:
+    If face recognition is NOT available:
         final_score = OSNet body score only
     """
 
     if face_score is not None:
         final_score = (body_score + face_score) / 2.0
         threshold = fused_threshold
-        source = "OSNet+ArcFace"
+        source = "OSNet+FaceRecognition"
     else:
         final_score = body_score
         threshold = body_threshold
@@ -263,15 +263,15 @@ def get_osnet_embedding(osnet_model, crop_bgr, device):
 
 
 # ---------------------------------------------------------
-# ARCFACE FACE RECOGNITION
+# FACE RECOGNITION
 # ---------------------------------------------------------
 
-def load_arcface_model():
+def load_face_recognition_model():
     """
     Loads InsightFace with detection + recognition modules.
 
-    FaceAnalysis is the wrapper.
-    The 'recognition' module is the actual ArcFace-style face recognition model.
+    FaceAnalysis is a wrapper.
+    The recognition module produces face identity embeddings.
     """
 
     app = FaceAnalysis(
@@ -286,27 +286,27 @@ def load_arcface_model():
     )
 
     loaded_modules = list(app.models.keys())
-    print(f"[ARCFACE] Loaded InsightFace modules: {loaded_modules}")
+    print(f"[FACE RECOGNITION] Loaded InsightFace modules: {loaded_modules}")
 
     if "recognition" not in app.models:
         raise RuntimeError(
-            "ArcFace/face recognition model was NOT loaded. "
+            "Face recognition model was NOT loaded. "
             "Only face detection may be available."
         )
 
-    print("[ARCFACE] Face recognition model loaded correctly.")
-    print(f"[ARCFACE] Recognition model object: {app.models['recognition']}")
+    print("[FACE RECOGNITION] Recognition model loaded correctly.")
+    print(f"[FACE RECOGNITION] Recognition model object: {app.models['recognition']}")
 
     return app
 
 
-def detect_arcface_faces(arcface_model, frame):
+def detect_faces_with_embeddings(face_model, frame):
     """
-    Detects faces and returns normalized ArcFace face-recognition embeddings.
+    Detects faces and returns normalized face-recognition embeddings.
     If no recognition embedding is available, the face is skipped.
     """
 
-    faces_raw = arcface_model.get(frame)
+    faces_raw = face_model.get(frame)
     faces = []
 
     for face in faces_raw:
@@ -331,7 +331,7 @@ def detect_arcface_faces(arcface_model, frame):
             embedding = l2_normalize(face.embedding)
 
         if embedding is None:
-            print("[ARCFACE WARNING] Face detected but no recognition embedding found.")
+            print("[FACE WARNING] Face detected but no recognition embedding found.")
             continue
 
         embedding = l2_normalize(embedding)
@@ -561,7 +561,7 @@ def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
     )
 
 
-def draw_face_box(frame, face_bbox, text="ArcFace"):
+def draw_face_box(frame, face_bbox, text="FaceRec"):
     x1, y1, x2, y2 = face_bbox
 
     cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 2)
@@ -584,7 +584,7 @@ def draw_face_box(frame, face_bbox, text="ArcFace"):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: OSNET + REAL ARCFACE FUSION ###")
+    print("### RUNNING VERSION: OSNET + FACE RECOGNITION FUSION ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
@@ -597,13 +597,13 @@ def main():
     print("[INFO] Input is LIVE RGB stream from OAK camera.")
     print("[INFO] YOLO detects persons and laptops.")
     print("[INFO] OSNet performs body Re-ID.")
-    print("[INFO] ArcFace performs face recognition.")
-    print("[INFO] If face is available: final_score = mean(OSNet_score, ArcFace_score).")
+    print("[INFO] Face Recognition performs identity recognition from face embeddings.")
+    print("[INFO] If face is available: final_score = mean(OSNet_score, FaceRecognition_score).")
     print("[INFO] If face is not available: final_score = OSNet_score only.\n")
 
     yolo_model = YOLO("yolov8n.pt")
     osnet_model = load_osnet(args.device)
-    arcface_model = load_arcface_model()
+    face_model = load_face_recognition_model()
 
     # ---------------------------------------------------------
     # OAK LIVE CAMERA SETUP
@@ -640,7 +640,7 @@ def main():
     print("[OWNER ENROLLMENT WAITING FOR FIRST FRAME]")
     print(f"Enrollment duration: {args.enrollment_seconds} seconds")
     print("Only the owner should be visible during this phase.")
-    print("Move for OSNet, and look at the camera sometimes for ArcFace.\n")
+    print("Move for OSNet, and look at the camera sometimes for Face Recognition.\n")
 
     with dai.Pipeline(oak_device) as pipeline:
         print("[OAK] Creating live camera pipeline...")
@@ -679,11 +679,11 @@ def main():
             elapsed = now - enrollment_start_time
 
             persons, laptops = get_yolo_detections(yolo_model, frame)
-            faces = detect_arcface_faces(arcface_model, frame)
+            faces = detect_faces_with_embeddings(face_model, frame)
 
             cv2.putText(
                 frame,
-                f"ArcFace faces: {len(faces)}",
+                f"FaceRec faces: {len(faces)}",
                 (20, 80),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
@@ -692,7 +692,7 @@ def main():
             )
 
             for face in faces:
-                draw_face_box(frame, face["bbox"], "ArcFace")
+                draw_face_box(frame, face["bbox"], "FaceRec")
 
             current_laptop = laptops[0] if len(laptops) > 0 else None
 
