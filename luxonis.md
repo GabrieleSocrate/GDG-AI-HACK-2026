@@ -1,0 +1,642 @@
+# Luxonis Documentation
+
+Luxonis builds spatial AI and robotic vision hardware, software, and cloud tools. OAK is the Luxonis camera and compute platform for depth perception, computer vision, and on-device AI.
+
+For building apps with a connected device, start with [oakctl](https://docs.luxonis.com/software-v3/oak-apps/oakctl.md).
+
+## Overview
+- [Overview](https://docs.luxonis.com/overview.md): A quick tour of Luxonis capabilities: AI on-device, depth, tracking, spatial perception, and remote management.
+- [Depth](https://docs.luxonis.com/overview/toplevel-features/depth.md)
+- [Object Tracking](https://docs.luxonis.com/overview/toplevel-features/object_tracking.md)
+- [Spatial Perception](https://docs.luxonis.com/overview/toplevel-features/spatial_perception.md)
+- [Feature Tracking](https://docs.luxonis.com/overview/toplevel-features/feature_tracking.md)
+- [AI Capabilities](https://docs.luxonis.com/overview/toplevel-features/ai_capabilities.md)
+- [Remote Management](https://docs.luxonis.com/overview/toplevel-features/remote_management.md)
+
+## Hardware
+- [Hardware](https://docs.luxonis.com/hardware.md): Explore Luxonis hardware documentation for detailed guides on camera sensors, deployment, environmental testing, and device specifications.
+- [Robotics Vision Core 2](https://docs.luxonis.com/hardware/platform/rvc/rvc2.md): Discover Robotics Vision Core 2 (RVC2) by Luxonis - advanced depthAI features, 4 TOPS processing power, custom AI model support, efficient heat dissipation, and more.
+- [Robotics Vision Core 4](https://docs.luxonis.com/hardware/platform/rvc/rvc4.md): RVC4 - 6-core ARM CPU, up to 3x8K@30, powerful AI engine, OAK4 models
+- [Depth Perception](https://docs.luxonis.com/hardware/platform/features/depth.md): Luxonis' Depth Perception tech includes Passive Stereo, Active Stereo, and Time-of-Flight methods, enhancing depth accuracy for diverse applications.
+- [IR Perception](https://docs.luxonis.com/hardware/platform/features/ir-perception.md): Luxonis' IR Perception integrates 940nm notch IR filters, enabling detection of both visible and IR light, enhancing low light performance and depth accuracy.
+- [Dot projector](https://docs.luxonis.com/hardware/platform/features/ir-perception/dot-projector.md)
+- [Flood IR](https://docs.luxonis.com/hardware/platform/features/ir-perception/flood-ir.md)
+- [Laser Safety](https://docs.luxonis.com/hardware/platform/features/ir-perception/laser-safety.md)
+- [Depth accuracy](https://docs.luxonis.com/hardware/platform/depth/depth-accuracy.md): Depth accuracy is enhanced by factors like camera calibration, FOV, resolution, and baseline distance, ensuring precise depth measurement across various setups with min. absolute error from 1.5%
+- [Configuring Stereo Depth](https://docs.luxonis.com/hardware/platform/depth/configuring-stereo-depth.md): Stereo depth configuration guide covers stereo depth basics, fixing noisy depth, improving accuracy, and optimizing short and long-range depth sensing for precise measurements.
+- [ToF Depth Perception](https://docs.luxonis.com/hardware/platform/depth/ToF-depth.md): Time-of-flight (ToF) technology uses modulated infrared light (940nm) to measure distance. Light bounces off objects, returns to the sensor, and the travel time calculates depth.
+- [Manual Calibration](https://docs.luxonis.com/hardware/platform/depth/manual-calibration.md): Full calibration guide to achieve an accurate depth and ToF sensor alignment. Learn camera calibration procedures, including using Charuco boards, running calibration scripts, and troubleshooting to enhance 3D mapping and depth accuracy.
+- [Dynamic Calibration](https://docs.luxonis.com/hardware/platform/depth/dynamic-calibration.md): Full guide to Luxonis Dynamic Calibration - diagnose calibration health, regenerate extrinsics on-device, and keep depth accuracy stable without special targets.
+- [OAK4 Getting Started](https://docs.luxonis.com/hardware/platform/deploy/oak4-deployment-guide/oak4-getting-started.md)
+- [OAK4 Advanced](https://docs.luxonis.com/hardware/platform/deploy/oak4-deployment-guide/oak4-advanced.md)
+- [OAK PoE Deployment Guide](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide.md): Deployment guide for OAK PoE devices, where ethernet is used for both power and connectivity, covering initial setup, debugging, and video streaming for OAK devices.
+- [OAK USB Deployment Guide](https://docs.luxonis.com/hardware/platform/deploy/usb-deployment-guide.md): Deployment guide for USB devices explains how to install DepthAI and its dependencies, and how to debug when troubles occur.
+- [OAK4 SoM Development Guide](https://docs.luxonis.com/hardware/platform/deploy/oak4-som-development-guide.md)
+- [OAK4 M8 Interface Guide](https://docs.luxonis.com/hardware/platform/deploy/oak4-m8-interface.md)
+- [OAK4 WiFi](https://docs.luxonis.com/hardware/platform/deploy/oak4-wifi.md): How to connect OAK4 to WiFi using our M8 WiFi Adapter or a supported USB-C WiFi dongle.
+- [Getting started with FFC](https://docs.luxonis.com/hardware/platform/deploy/ffc.md)
+- [Deploy with Raspberry Pi](https://docs.luxonis.com/hardware/platform/deploy/to-rpi.md): Deploy on Raspberry Pi with this complete guide, including steps for installation, flashing OS images, powering OAK devices from Pi, and troubleshooting connectivity issues.
+- [Deploy with NVIDIA's Jetson](https://docs.luxonis.com/hardware/platform/deploy/to-jetson.md): Deploy DepthAI on NVIDIA Jetson with this guide, covering installation, setting up Jetson OS, connecting OAK devices, how to interact with Jetson.
+- [Deploy with RockPi](https://docs.luxonis.com/hardware/platform/deploy/to-rockpi.md): Deploy DepthAI on RockPi with this guide, covering installation, setting up different versions of RockPi, connecting RockPi remotely, and troubleshooting connectivity and performance issues.
+- [OAK2 SoM Development Guide](https://docs.luxonis.com/hardware/platform/deploy/oak2-som-development-guide.md)
+- [Frame synchronization](https://docs.luxonis.com/hardware/platform/deploy/frame-sync.md)
+- [Connectors M8, M12](https://docs.luxonis.com/hardware/platform/deploy/m8_m12_connectors.md): Description of the pin layout on the M8 and M12 connectors.
+- [Supported Sensors](https://docs.luxonis.com/hardware/platform/sensors/sensors.md): List of supported sensors
+- [IMU](https://docs.luxonis.com/hardware/platform/sensors/imu.md): Overview of Luxonis IMU hardware: sensor families, output types, reference frames, and factory calibration.
+- [BNO08X](https://docs.luxonis.com/hardware/platform/sensors/imu/bno08x.md): Hardware reference for the BNO08X IMU family used in Luxonis devices.
+- [BMI270](https://docs.luxonis.com/hardware/platform/sensors/imu/bmi270.md): Hardware reference for the BMI270 IMU used in Luxonis devices.
+- [LSM6DSV](https://docs.luxonis.com/hardware/platform/sensors/imu/lsm6dsv.md): Hardware reference for the LSM6DSV IMU used in Luxonis devices.
+- [AK09919](https://docs.luxonis.com/hardware/platform/sensors/imu/ak09919.md): Hardware reference for the AK09919 magnetometer used in Luxonis devices.
+- [CCMs](https://docs.luxonis.com/hardware/platform/sensors/ccms.md): CMMs guide covers various camera modules compatible with their devices. Learn about sensor types, resolution, field of view, and how to replace and configure CCMs for optimal performance.
+- [Shutter Type](https://docs.luxonis.com/hardware/platform/sensors/shutter-type.md): OAK cameras support both rolling shutter and global shutter camera sensors. Explore its usage and limitations.
+- [Image Quality](https://docs.luxonis.com/hardware/platform/sensors/image-quality.md): image quality guide details improving IQ for OAK cameras, covering ISP configuration, low-light sensitivity, camera tuning, and motion blur reduction techniques.
+- [Auto/Fixed Focus](https://docs.luxonis.com/hardware/platform/sensors/focus-type.md)
+- [Vibration Tolerance](https://docs.luxonis.com/hardware/platform/environmental-specifications/vibration-tolerance.md): We test cameras according to EN 60068-2-6:2008 standards, ensuring robust performance in harsh environments. Review test results and reports.
+- [IP rating](https://docs.luxonis.com/hardware/platform/environmental-specifications/ip-rating.md): An explanation of the dustproof and waterproof of our devices and how it is tested.
+- [Operating temperature](https://docs.luxonis.com/hardware/platform/environmental-specifications/operating-temperature.md): This article specifies the temperature ranges for the devices, ensuring reliable performance in diverse environments. Check the guide for exact ranges and testing standards.
+- [Power Consumption](https://docs.luxonis.com/hardware/platform/environmental-specifications/power-consumption.md): This article describes the breakdown of power consumption for the components of the camera.
+- [OAK vs RealSense™](https://docs.luxonis.com/hardware/platform/comparison/vs-realsense.md): See the comparison between OAK cameras and Intel's RealSense™. Evaluate depth accuracy, on-device features, and embedded applications.
+- [OAK vs StereoLabs™](https://docs.luxonis.com/hardware/platform/comparison/vs-stereolabs.md): See the comparison between OAK and StereoLabs ZED cameras. Evaluate depth accuracy, on-device features, and host requirements.
+- [Status Light](https://docs.luxonis.com/hardware/platform/status-light.md): Reference for the OAK4 status LED patterns, plus examples for overriding the user RGB output.
+
+### Hardware Products
+- [FSYNC Y-Adapter](https://docs.luxonis.com/hardware/products/FSYNC%20Y-Adapter.md): The FSync Y-adapter is meant to be used with Luxonis' OAK PoE cameras that have M8 connector. Works out-of-the-box with OAK-D-SR-PoE.
+- [OAK 4 CS](https://docs.luxonis.com/hardware/products/OAK%204%20CS.md): **OAK 4 CS** delivers standalone edge inference with the flexibility of interchangeable optics through its CS-mount single-lens design. Choose between a high-resolution rolling-shutter sensor or a global-shutter variant for fast-moving subjects—all in a compact, industrial-grade device built for precision and versatility.
+- [OAK 4 D](https://docs.luxonis.com/hardware/products/OAK%204%20D.md): **OAK 4 D** is the most advanced stereo vision and edge inference camera we have produced. A true standalone device running Luxonis OS, the OAK 4 D combines an elegant design, industrial grade materials, and industry leading compute in a single unit.
+- [OAK 4 D Pro](https://docs.luxonis.com/hardware/products/OAK%204%20D%20Pro.md): **OAK 4 D PRO** is the most advanced stereo vision and edge inference camera we have produced. A true standalone device running Luxonis OS, the OAK 4 D Pro combines an elegant design, industrial grade materials, and industry leading compute in a single unit.
+- [OAK 4 S](https://docs.luxonis.com/hardware/products/OAK%204%20S.md): **OAK 4 S** is our single lens solution for high-speed edge inference in a tiny package. A true standalone device running Luxonis OS, the OAK 4 S combines an elegant design, industrial grade materials, and industry leading compute in a single, compact unit.
+- [OAK 4 SoM](https://docs.luxonis.com/hardware/products/OAK%204%20SoM.md): The **OAK 4 SoM** features the [Robotics Vision Core 4](https://docs.luxonis.com/hardware/platform/rvc/rvc4/) and an **octa-core ARM CPU**. It is ideal for use in industrial automation, robotics, and security systems.
+- [OAK Thermal](https://docs.luxonis.com/hardware/products/OAK%20Thermal.md): The OAK-T (OAK Thermal) is our first camera with a thermal sensor and a color image sensor.
+- [OAK-1](https://docs.luxonis.com/hardware/products/OAK-1.md): For all scenarios where depth perception is not requisite, OAK-1 offers processing power of RVC2 core in a smallest possible body.
+- [OAK-1 Lite](https://docs.luxonis.com/hardware/products/OAK-1%20Lite.md): Lightweight version of [OAK-1](https://shop.luxonis.com/products/oak-1) device employing a different, 13Mpix camera module. Available both in fixed-focus and auto-focus versions.
+- [OAK-1 Lite W](https://docs.luxonis.com/hardware/products/OAK-1%20Lite%20W.md): Lightweight version of [OAK-1 W](https://shop.luxonis.com/products/oak-1-w) device employing a different, **13 MP wide field of view** camera module.
+- [OAK-1 MAX](https://docs.luxonis.com/hardware/products/OAK-1%20MAX.md): **OAK-1 MAX** is an **32MP** AI camera that features on-device Neural Network inferencing and Computer Vision capabilities. It can capture high-resolution images, run custom AI models, and perform advanced computer vision tasks.
+- [OAK-1 PoE](https://docs.luxonis.com/hardware/products/OAK-1%20PoE.md): PoE version of [OAK-1](https://shop.luxonis.com/products/oak-1). **IP67** rated enclosure able to withstand a more challenging environment, RJ45 ethernet connector for power and communication, newly with additional fixed-focus camera option and **wide field of view** brother model [OAK-1 Wide PoE](https://shop.luxonis.com/collections/poe/products/oak-1-w-poe).
+- [OAK-1 W](https://docs.luxonis.com/hardware/products/OAK-1%20W.md): OAK-1 paired with a **wide field of view** camera module capturing more in one shot, for scenarios where large area coverage comes handy.
+- [OAK-1 W PoE](https://docs.luxonis.com/hardware/products/OAK-1%20W%20PoE.md): Recently introduced model combining OAK-1 PoE body (and IP67 rating) with a new range of applications brought about by **wide field of view** camera.
+- [OAK-D](https://docs.luxonis.com/hardware/products/OAK-D.md): The original OAK-D. 4 TOPS of processing power, two grayscale sensors for stereo depth, and a single center color sensor. It has been directly superseded by the 2nd generation [OAK-D-S2](https://shop.luxonis.com/products/oak-d-s2) offering more CCM options in a sleeker body, or its [Pro versioin](https://shop.luxonis.com/collections/usb/products/oak-d-pro) with additional features.
+- [OAK-D CM4](https://docs.luxonis.com/hardware/products/OAK-D%20CM4.md): The **OAK-D CM4** combines OAK-D with **Raspberry Pi CM4** module acting as host computer. It's designed to provide developers with a platform for creating advanced computer vision applications.
+- [OAK-D CM4 PoE](https://docs.luxonis.com/hardware/products/OAK-D%20CM4%20PoE.md): The **OAK-D CM4 PoE** combines OAK-D with **Raspberry Pi CM4** module acting as host computer. It's designed to provide developers with a platform for creating advanced computer vision applications.
+- [OAK-D Lite](https://docs.luxonis.com/hardware/products/OAK-D%20Lite.md): Combines high performance and economy, providing all the superpowers offered by RVC2 core and DepthAI API in an affordable package. Won AI and Vision Alliance's [Best camera award](https://www.edge-ai-vision.com/2022/05/2022-edge-ai-and-vision-product-of-the-year-award-winner-showcase-luxonis-cameras-and-sensors/) in 2022.
+- [OAK-D LR](https://docs.luxonis.com/hardware/products/OAK-D%20LR.md): With its 15cm baseline **OAK-D LR** is capable of precise depth readings up to ~30 m. And of course it offers all the features of OAK-D line, RVC2 core and the ability to run any AI model. This camera is ideal for outdoor use, thanks to its **IP65 certification** for water and dust resistance.
+- [OAK-D PoE](https://docs.luxonis.com/hardware/products/OAK-D%20PoE.md): The original **OAK-D PoE** offers an **IP67** rated enclosure for harsher environments and RJ45 Ethernet connector. See Series 2 PoE models for more CCM options including wide field of view, industrial M12X connector, night vision or improved depth perception.
+- [OAK-D Pro](https://docs.luxonis.com/hardware/products/OAK-D%20Pro.md): Series 2 camera equipped with **IR illumination** for **low-light** conditions and **active stereo** improving depth perception.
+- [OAK-D Pro PoE](https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20PoE.md): Series 2 PoE camera featuring RVC2 core, **IR illumination** and **active stereo** improving depth perception, in **IP65** enclosure with industrial connectors.
+- [OAK-D Pro W](https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20W.md): Series 2 camera combining **IR illumination** and **active stereo** features with **wide field of view** camera modules. Well suited for all the scenarios that require coverage of larger areas.
+- [OAK-D Pro W PoE](https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20W%20PoE.md): **Wide field of view** alternative to standard Series 2 PoE model offering **IR illumination** and **active stereo** features in IP65 rated enclosure with industrial type connectors. Able to cover larger areas and/or more effective in multi camera setups.
+- [OAK-D S2](https://docs.luxonis.com/hardware/products/OAK-D%20S2.md): Ultimate camera for robotic vision that perceives the world like a human by combining stereo depth camera and high-resolution color camera with an on-device Neural Network inferencing and Computer Vision capabilities.
+- [OAK-D S2 PoE](https://docs.luxonis.com/hardware/products/OAK-D%20S2%20PoE.md): Series 2 of our PoE line combines a more rugged body rated **IP65**, industrial M12 Ethernet connector, stand-alone mode thanks to flash memory included, new CCM options and much more.
+- [OAK-D SR](https://docs.luxonis.com/hardware/products/OAK-D%20SR.md): The **OAK-D-SR** is designed to prioritize improved **short-range** accuracy compared to the standard [OAK-D](https://shop.luxonis.com/products/oak-d), with the ideal depth measurement range being 30cm to 1m. It's perfect for applications that require close-in depth and detail, such as quality control or automated manufacturing.
+- [OAK-D ToF](https://docs.luxonis.com/hardware/products/OAK-D%20ToF.md): **OAK Time of Flight** is a camera that emphasizes improved short-range accuracy when compared to the standard OAK-D and further expands our catalog of robotic vision solutions. It employs **Time of Flight (ToF)** VGA sensor, which enables accurate measurement of the depth of objects in a scene, resulting in more precise focusing and improved low-light performance.
+- [OAK-D W](https://docs.luxonis.com/hardware/products/OAK-D%20W.md): Series 2 device incorporating wide field of view camera modules. Well suited for all the scenarios that require coverage of larger areas.
+- [OAK-D W PoE](https://docs.luxonis.com/hardware/products/OAK-D%20W%20PoE.md): Wide field of view alternative to standard Series 2 PoE model offering IP65 rated enclosure with industrial type connectors. Able to cover larger areas and/or more effective in multi camera setups.
+- [OAK-FFC 1P PoE](https://docs.luxonis.com/hardware/products/OAK-FFC%201P%20PoE.md): **OAK-FFC 1P PoE** is a flexible and powerful prototyping platform that allows you to connect any [FFC camera module](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-camera+module&sort_by=manual) that best fit your project requirement in terms of resolution, FPS, FOV, shutter type, and depth of focus. It also features on-device [Neural Network inferencing](https://docs.luxonis.com/software/perception/neural-networks) and [Computer Vision](https://docs.luxonis.com/software/perception/computer-vision) capabilities.
+- [OAK-FFC 3P](https://docs.luxonis.com/hardware/products/OAK-FFC%203P.md): **OAK-FFC 3P** is a flexible and powerful prototyping platform that allows you to connect up to 3 [FFC camera modules](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-camera+module&sort_by=manual) that best fit your project requirement in terms of resolution, FPS, FOV, shutter type, and depth of focus. It also features on-device [Neural Network inferencing](https://docs.luxonis.com/software/perception/neural-networks) and [Computer Vision](https://docs.luxonis.com/software/perception/computer-vision) capabilities.
+- [OAK-FFC 4P](https://docs.luxonis.com/hardware/products/OAK-FFC%204P.md): **OAK-FFC 4P** is a flexible and powerful prototyping platform that allows you to connect up to 4 [FFC camera modules](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-camera+module&sort_by=manual) that best fit your project requirement in terms of resolution, FPS, FOV, shutter type, and depth of focus. It also features on-device [Neural Network inferencing](https://docs.luxonis.com/software/perception/neural-networks) and [Computer Vision](https://docs.luxonis.com/software/perception/computer-vision) capabilities.
+- [OAK-FFC 4P PoE](https://docs.luxonis.com/hardware/products/OAK-FFC%204P%20PoE.md): **OAK-FFC 4P PoE** is a flexible and powerful prototyping platform that allows you to connect up to 4 FFC camera modules that best fit your project requirement in terms of resolution, FPS, FOV, shutter type, and depth of focus. It also features on-device [Neural Network inferencing](https://docs.luxonis.com/software/perception/neural-networks) and [Computer Vision](https://docs.luxonis.com/software/perception/computer-vision) capabilities.
+- [OAK-FFC AR0234 M12](https://docs.luxonis.com/hardware/products/OAK-FFC%20AR0234%20M12.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC IMX462](https://docs.luxonis.com/hardware/products/OAK-FFC%20IMX462.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping. This module uses an **M12 lens mount**. The lens can be replaced with any M12 lens designed for a 1/2.8'' sensor.
+- [OAK-FFC IMX477 M12](https://docs.luxonis.com/hardware/products/OAK-FFC%20IMX477%20M12.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC IMX577 M12](https://docs.luxonis.com/hardware/products/OAK-FFC%20IMX577%20M12.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC IMX582](https://docs.luxonis.com/hardware/products/OAK-FFC%20IMX582.md): This camera module with **32MP** sensor can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC OV9282 M12 (22 pin)](https://docs.luxonis.com/hardware/products/OAK-FFC%20OV9282%20M12%20(22%20pin).md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC OV9782 M12 (22 pin)](https://docs.luxonis.com/hardware/products/OAK-FFC%20OV9782%20M12%20(22%20pin).md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC ToF 33D](https://docs.luxonis.com/hardware/products/OAK-FFC%20ToF%2033D.md): The **OAK-FFC ToF 33D** is a carrier board for the 33D ToF (Time-of-Flight) sensor. It's ideal for applications that require high accuracy at short to medium range (up to 4m). This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-IMX214-W](https://docs.luxonis.com/hardware/products/OAK-FFC-IMX214-W.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-IMX378](https://docs.luxonis.com/hardware/products/OAK-FFC-IMX378.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-IMX378-FF](https://docs.luxonis.com/hardware/products/OAK-FFC-IMX378-FF.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-IMX378-W](https://docs.luxonis.com/hardware/products/OAK-FFC-IMX378-W.md): This **wide FOV** camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-OV9282](https://docs.luxonis.com/hardware/products/OAK-FFC-OV9282.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-OV9282-2](https://docs.luxonis.com/hardware/products/OAK-FFC-OV9282-2.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-OV9282-W](https://docs.luxonis.com/hardware/products/OAK-FFC-OV9282-W.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-OV9782-FF](https://docs.luxonis.com/hardware/products/OAK-FFC-OV9782-FF.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-FFC-OV9782-W](https://docs.luxonis.com/hardware/products/OAK-FFC-OV9782-W.md): This camera module can be used with any of the [FFC baseboards](https://shop.luxonis.com/collections/oak-modules/?q=filter_tag%3dtype-base+module&sort_by=manual), perfectly suited for quick prototyping.
+- [OAK-SoM (sets)](https://docs.luxonis.com/hardware/products/OAK-SoM%20(sets).md): **OAK-SoM** can be used to integrate the power of DepthAI into custom products, leveraging our open-source software and hardware (see our [Github](https://github.com/luxonis)).
+- [Y-Adapter](https://docs.luxonis.com/hardware/products/Y-Adapter.md): The OAK Y Adapter is recommended for use with a Luxonis OAK device and allows for simultaneous charging and a USB3 Type C connection. OAK Y Adapter supplies power to OAK cameras through a USB-C connector. Note that in most cases, the host computer can provide enough current (>1A).
+
+### Hardware Sensors
+- [33D](https://docs.luxonis.com/hardware/sensors/33D.md): Camera sensor reference for 33D.
+- [AR0234](https://docs.luxonis.com/hardware/sensors/AR0234.md): Camera sensor reference for AR0234.
+- [IMX214](https://docs.luxonis.com/hardware/sensors/IMX214.md): Camera sensor reference for IMX214.
+- [IMX378](https://docs.luxonis.com/hardware/sensors/IMX378.md): Camera sensor reference for IMX378.
+- [IMX462](https://docs.luxonis.com/hardware/sensors/IMX462.md): Camera sensor reference for IMX462.
+- [IMX477](https://docs.luxonis.com/hardware/sensors/IMX477.md): Camera sensor reference for IMX477.
+- [IMX577](https://docs.luxonis.com/hardware/sensors/IMX577.md): Camera sensor reference for IMX577.
+- [IMX582](https://docs.luxonis.com/hardware/sensors/IMX582.md): Camera sensor reference for IMX582.
+- [IMX586](https://docs.luxonis.com/hardware/sensors/IMX586.md): Camera sensor reference for IMX586.
+- [IMX678](https://docs.luxonis.com/hardware/sensors/IMX678.md): Camera sensor reference for IMX678.
+- [IMX708](https://docs.luxonis.com/hardware/sensors/IMX708.md): Camera sensor reference for IMX708.
+- [MIRA220](https://docs.luxonis.com/hardware/sensors/MIRA220.md): Camera sensor reference for MIRA220.
+- [OG05B10](https://docs.luxonis.com/hardware/sensors/OG05B10.md): Camera sensor reference for OG05B10.
+- [OV7251](https://docs.luxonis.com/hardware/sensors/OV7251.md): Camera sensor reference for OV7251.
+- [OV9282](https://docs.luxonis.com/hardware/sensors/OV9282.md): Camera sensor reference for OV9282.
+- [OV9782](https://docs.luxonis.com/hardware/sensors/OV9782.md): Camera sensor reference for OV9782.
+- [TINY1C](https://docs.luxonis.com/hardware/sensors/TINY1C.md): Camera sensor reference for TINY1C.
+
+## Software
+- [Software](https://docs.luxonis.com/software-v3.md): Luxonis SDK docs for the OAK software stack: DepthAI API (Python/C++), oakctl, tools and examples for OAK USB, PoE and OAK4 cameras.
+- [Template App](https://docs.luxonis.com/software-v3/template.md): Overview of Luxonis software stack for DepthAI devices, AI inference, and Luxonis HUB.
+- [OAK Apps](https://docs.luxonis.com/software-v3/oak-apps.md): OAK Apps are containerized computer vision applications built for OAK devices. Learn how to create, deploy, and manage your applications across devices.
+- [oakctl](https://docs.luxonis.com/software-v3/oak-apps/oakctl.md): oakctl is a command-line tool for managing OAK devices. It allows you to interact with the device, deploy applications, and manage the device's configuration.
+- [Configuration (oakapp.toml)](https://docs.luxonis.com/software-v3/oak-apps/configuration.md)
+- [Base Image (oakapp-base)](https://docs.luxonis.com/software-v3/oak-apps/base-image.md): Base Image for OAK4 Apps
+- [API Key Good Practices](https://docs.luxonis.com/software-v3/oak-apps/apikey-good-practices.md): How to handle Luxonis Hub API keys safely when working with OAK Apps, DepthAI scripts, and oakctl.
+- [Debugging](https://docs.luxonis.com/software-v3/oak-apps/debugging.md): How to debug oakctl applications using VS Code, PyCharm, or a web browser.
+- [DepthAI](https://docs.luxonis.com/software-v3/depthai.md): DepthAI SDK (Luxonis SDK) docs and API references for OAK cameras. Learn the DepthAI v3 library, install it, and build pipelines in Python or C++.
+- [Device](https://docs.luxonis.com/software-v3/depthai/depthai-components/device.md): The DepthAI Device API manages OAK cameras and RAE robots, handling AI inference, computer vision, and depth processing with the Robotics Vision Core (RVC).
+- [Pipeline](https://docs.luxonis.com/software-v3/depthai/depthai-components/pipeline.md): The DepthAI Pipeline API enables creating and managing processing pipelines for OAK devices, linking nodes for AI, vision, and depth tasks. It supports OpenVINO integration and multi-device setups.
+- [Device Nodes](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes.md): Nodes are building blocks of your application. Each node provides specific functionality on the DepthAI, with a set of configurable properties and inputs/outputs.
+- [AprilTag](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/april_tag.md)
+- [BenchmarkIn](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/benchmark_in.md)
+- [BenchmarkOut](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/benchmark_out.md)
+- [Camera](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/camera.md): Unified Color / Mono camera node for DepthAI v3 API (RVC2 & RVC4).
+- [DetectionNetwork](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/detection_network.md)
+- [EdgeDetector](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/edge_detector.md)
+- [FeatureTracker](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/feature_tracker.md)
+- [Gate](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/gate.md)
+- [ImageFilters](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/image_filters.md)
+- [ImageAlign](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/image_align.md)
+- [ImageManip](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/image_manip.md)
+- [IMU](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/imu.md)
+- [NeuralDepth](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/neural_depth.md)
+- [NeuralAssistedStereo](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/neural_assisted_stereo.md)
+- [NeuralNetwork](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/neural_network.md)
+- [ObjectTracker](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/object_tracker.md)
+- [RGBD](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/rgbd.md)
+- [Script](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/script.md)
+- [SpatialDetectionNetwork](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/spatial_detection_network.md)
+- [SpatialLocationCalculator](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/spatial_location_calculator.md)
+- [StereoDepth](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/stereo_depth.md)
+- [Sync](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/sync.md)
+- [SystemLogger](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/system_logger.md)
+- [Thermal](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/thermal.md)
+- [ToF](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/tof.md)
+- [VideoEncoder](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/video_encoder.md)
+- [Warp](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/warp.md)
+- [Host Nodes](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes.md)
+- [DynamicCalibration](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/dynamic_calibration.md): Implementation guide to Luxonis Dynamic Calibration - diagnose calibration health, regenerate extrinsics on-device, and keep depth accuracy stable without special targets.
+- [AutoCalibration](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/auto_calibration.md): AutoCalibration Host Node guide - configure automatic calibration behavior and consume calibration results in your pipeline.
+- [RecordVideo](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/record_video.md)
+- [ReplayVideo](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/replay_video.md)
+- [RecordMetadataOnly](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/record_metadata_only.md)
+- [ReplayMetadataOnly](https://docs.luxonis.com/software-v3/depthai/depthai-components/host_nodes/replay_metadata_only.md)
+- [Messages](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages.md): DepthAI Messages enable communication between nodes in a pipeline. Nodes exchange information through these messages, which can be created and sent either on the device or from a host computer.
+- [ADatatype](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/a_datatype.md)
+- [AprilTagConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/april_tag_config.md)
+- [AprilTags](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/april_tags.md)
+- [BenchmarkReport](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/benchmark_report.md)
+- [Buffer](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/buffer.md)
+- [CalibrationQuality](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/calibration_quality.md)
+- [CalibrationMetrics](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/calibration_metrics.md)
+- [CameraControl](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/camera_control.md)
+- [CoverageData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/coverage_data.md)
+- [DynamicCalibrationControl](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/dynamic_calibration_control.md)
+- [DynamicCalibrationResult](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/dynamic_calibration_result.md)
+- [EdgeDetectorConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/edge_detector_config.md)
+- [EncodedFrame](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/encodedframe.md)
+- [FeatureTrackerConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/feature_tracker_config.md)
+- [ImageAlignConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/image_align_config.md)
+- [ImageFiltersConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/image_filters_config.md)
+- [ImageManipConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/image_manip_config.md)
+- [ImgAnnotations](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/img_annotations.md)
+- [ImgDetections](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/img_detections.md)
+- [ImgFrame](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/img_frame.md)
+- [IMUData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/imu_data.md)
+- [MessageGroup](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/message_group.md)
+- [NeuralDepthConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/neural_depth_config.md)
+- [VppConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/vpp_config.md)
+- [NNData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/nn_data.md)
+- [ObjectTrackerConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/object_tracker_config.md)
+- [PointCloudConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/pointcloud_config.md)
+- [PointCloudData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/pointcloud_data.md)
+- [RGBDData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/rgbd_data.md)
+- [SpatialImgDetections](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/spatial_img_detections.md)
+- [SpatialLocationCalculatorConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/spatial_location_calculator_config.md)
+- [SpatialLocationCalculatorData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/spatial_location_calculator_data.md)
+- [StereoDepthConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/stereo_depth_config.md)
+- [SystemInformation](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/system_information.md)
+- [SystemInformationRVC4](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/system_information_rvc4.md)
+- [ThermalConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/thermal_config.md)
+- [ToFConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/tof_config.md)
+- [ToFDepthConfidenceFilterConfig](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/tof_depth_confidence_filter_config.md)
+- [TrackedFeatures](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/tracked_features.md)
+- [Tracklets](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/tracklets.md)
+- [TransformData](https://docs.luxonis.com/software-v3/depthai/depthai-components/messages/transform_data.md)
+- [Bootloader - RVC2](https://docs.luxonis.com/software-v3/depthai/depthai-components/bootloader.md): The DepthAI Bootloader initializes OAK cameras, handling boot processes, configurations, and updates via the depthai library.
+- [Depthai Examples](https://docs.luxonis.com/software-v3/depthai/examples.md): DepthAI's extensive code examples demonstrates AI, vision, and depth capabilities on OAK devices. These examples cover various applications and configurations, serving as practical guides for developers.
+- [AprilTags from camera](https://docs.luxonis.com/software-v3/depthai/examples/april_tags/april_tags.md)
+- [AprilTags from camera (12MP)](https://docs.luxonis.com/software-v3/depthai/examples/april_tags/april_tags_12mp.md)
+- [AprilTags on image replay](https://docs.luxonis.com/software-v3/depthai/examples/april_tags/april_tags_replay.md)
+- [Benchmark Simple](https://docs.luxonis.com/software-v3/depthai/examples/benchmark/benchmark_simple.md)
+- [Benchmark Camera](https://docs.luxonis.com/software-v3/depthai/examples/benchmark/benchmark_camera.md)
+- [Benchmark NN](https://docs.luxonis.com/software-v3/depthai/examples/benchmark/benchmark_nn.md)
+- [Display all cameras](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_all.md)
+- [Camera isp output](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_isp.md)
+- [Camera output](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_output.md)
+- [Camera multiple outputs](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_multiple_outputs.md)
+- [Camera raw output](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_raw.md)
+- [Camera ROI-based exposure and focus](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_roi_exposure_focus.md)
+- [Camera still image at max resolution](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_still_max_res.md)
+- [Camera Undistort](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_undistort.md)
+- [Camera video max resolution](https://docs.luxonis.com/software-v3/depthai/examples/camera/camera_max_resolution.md)
+- [Calibration Dump](https://docs.luxonis.com/software-v3/depthai/examples/calibration/calibration_dump.md)
+- [Calibration Load](https://docs.luxonis.com/software-v3/depthai/examples/calibration/calibration_load.md)
+- [Calibration Flash](https://docs.luxonis.com/software-v3/depthai/examples/calibration/calibration_flash.md)
+- [Calibration Factory Reset](https://docs.luxonis.com/software-v3/depthai/examples/calibration/calibration_factory_reset.md)
+- [Detection Network](https://docs.luxonis.com/software-v3/depthai/examples/detection_network/detection_network.md)
+- [Detection Network Remap](https://docs.luxonis.com/software-v3/depthai/examples/detection_network/detection_network_remap.md)
+- [Detection Network Replay](https://docs.luxonis.com/software-v3/depthai/examples/detection_network/detection_network_replay.md)
+- [Events](https://docs.luxonis.com/software-v3/depthai/examples/events/events.md)
+- [Feature Tracker](https://docs.luxonis.com/software-v3/depthai/examples/feature_tracker/feature_tracker.md)
+- [Gate](https://docs.luxonis.com/software-v3/depthai/examples/gate/gate.md)
+- [Host Display](https://docs.luxonis.com/software-v3/depthai/examples/host_nodes/display.md)
+- [Host Camera](https://docs.luxonis.com/software-v3/depthai/examples/host_nodes/host_camera.md)
+- [Threaded Host Nodes](https://docs.luxonis.com/software-v3/depthai/examples/host_nodes/threaded_host_nodes.md)
+- [Depth Align](https://docs.luxonis.com/software-v3/depthai/examples/image_align/depth_align.md)
+- [ImageManip all operations](https://docs.luxonis.com/software-v3/depthai/examples/image_manip/image_manip_all_ops.md)
+- [ImageManip multiple operations](https://docs.luxonis.com/software-v3/depthai/examples/image_manip/image_manip_multi_ops.md)
+- [ImageManip resize](https://docs.luxonis.com/software-v3/depthai/examples/image_manip/image_manip_resize.md)
+- [Image Manip remap](https://docs.luxonis.com/software-v3/depthai/examples/image_manip/image_manip_remap.md)
+- [Imu Accelerometer Gyroscope](https://docs.luxonis.com/software-v3/depthai/examples/imu/imu_accelerometer_gyroscope.md)
+- [Device Information](https://docs.luxonis.com/software-v3/depthai/examples/misc/device_information.md)
+- [Auto Reconnect](https://docs.luxonis.com/software-v3/depthai/examples/misc/auto_reconnect.md)
+- [Digital Zoom](https://docs.luxonis.com/software-v3/depthai/examples/misc/digital_zoom.md)
+- [IR Projectors Control](https://docs.luxonis.com/software-v3/depthai/examples/misc/projectors.md)
+- [XLink Bridge](https://docs.luxonis.com/software-v3/depthai/examples/misc/xlink_bridge.md)
+- [Model Zoo](https://docs.luxonis.com/software-v3/depthai/examples/model_zoo/model_zoo.md)
+- [Neural Depth](https://docs.luxonis.com/software-v3/depthai/examples/neural_depth/neural_depth.md)
+- [Neural Depth Minimal](https://docs.luxonis.com/software-v3/depthai/examples/neural_depth/neural_depth_minimal.md)
+- [Neural Depth Align](https://docs.luxonis.com/software-v3/depthai/examples/neural_depth/neural_depth_align.md)
+- [Neural Depth RGBD](https://docs.luxonis.com/software-v3/depthai/examples/neural_depth/neural_depth_rgbd.md)
+- [Neural Network](https://docs.luxonis.com/software-v3/depthai/examples/neural_network/neural_network.md)
+- [Neural Network Multi-input](https://docs.luxonis.com/software-v3/depthai/examples/neural_network/neural_network_multi_input.md)
+- [Neural Network Multi-input Combined](https://docs.luxonis.com/software-v3/depthai/examples/neural_network/neural_network_multi_input_combined.md)
+- [Object Tracker](https://docs.luxonis.com/software-v3/depthai/examples/object_tracker/object_tracker.md)
+- [Object Tracker Replay](https://docs.luxonis.com/software-v3/depthai/examples/object_tracker/object_tracker_replay.md)
+- [Object Tracker Remap](https://docs.luxonis.com/software-v3/depthai/examples/object_tracker/object_tracker_remap.md)
+- [Holistic Record](https://docs.luxonis.com/software-v3/depthai/examples/record_replay/holistic_record.md)
+- [Holistic replay](https://docs.luxonis.com/software-v3/depthai/examples/record_replay/holistic_replay.md)
+- [Video record](https://docs.luxonis.com/software-v3/depthai/examples/record_replay/record_video.md)
+- [Video replay](https://docs.luxonis.com/software-v3/depthai/examples/record_replay/replay_video.md)
+- [RGBD Point Cloud Visualization](https://docs.luxonis.com/software-v3/depthai/examples/rgbd/rgbd.md)
+- [RGBD Autocreate](https://docs.luxonis.com/software-v3/depthai/examples/rgbd/rgbd_autocreate.md)
+- [Script simple](https://docs.luxonis.com/software-v3/depthai/examples/script/script_simple.md)
+- [Script switch all cameras](https://docs.luxonis.com/software-v3/depthai/examples/script/script_switch_all_cameras.md)
+- [Spatial Detection Network](https://docs.luxonis.com/software-v3/depthai/examples/spatial_detection_network/spatial_detection.md)
+- [Spatial Location Calculator](https://docs.luxonis.com/software-v3/depthai/examples/spatial_location_calculator/spatial_location_calculator.md)
+- [Stereo Depth](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/stereo_depth.md)
+- [Neural Assisted Stereo](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/neural_assisted_stereo.md)
+- [Stereo Depth Remap](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/stereo_depth_remap.md)
+- [Stereo Depth From Host](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/stereo_depth_from_host.md)
+- [Stereo Depth Calibration Update](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/stereo_depth_calibration_update.md)
+- [Stereo Depth Filters](https://docs.luxonis.com/software-v3/depthai/examples/stereo_depth/stereo_depth_filters.md)
+- [Sync](https://docs.luxonis.com/software-v3/depthai/examples/sync/sync.md)
+- [Video Encode](https://docs.luxonis.com/software-v3/depthai/examples/video_encoder/video_encode.md)
+- [Visualizer YOLO](https://docs.luxonis.com/software-v3/depthai/examples/visualizer/visualizer_yolo.md)
+- [Visualizer Encoded](https://docs.luxonis.com/software-v3/depthai/examples/visualizer/visualizer_encoded.md)
+- [Custom Visualizations](https://docs.luxonis.com/software-v3/depthai/examples/visualizer/custom_visualizations.md)
+- [Custom Services](https://docs.luxonis.com/software-v3/depthai/examples/visualizer/custom_services.md)
+- [Warp Mesh](https://docs.luxonis.com/software-v3/depthai/examples/warp/warp_mesh.md)
+- [Edge Detector](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/edge_detector/edge_detector.md)
+- [NN Archive Superblob](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/nn_archive/nn_archive_superblob.md)
+- [System Information](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/system_logger/system_information.md)
+- [Thermal](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/thermal/thermal.md)
+- [Thermal Crosshair](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/thermal/thermal_crosshair.md)
+- [ToF](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/tof/tof.md)
+- [Basalt VIO RTab](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/vslam/basalt_vio_rtab.md)
+- [Basalt VIO](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/vslam/basalt_vio.md)
+- [RTab Map VIO SLAM](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/vslam/rtab_map_vio_slam.md)
+- [RTab Map VIO](https://docs.luxonis.com/software-v3/depthai/examples/rvc2/vslam/rtab_map_vio.md)
+- [Multi-Device Setup](https://docs.luxonis.com/software-v3/depthai/tutorials/multi-device-setup.md): Learn how to set up multiple DepthAI devices on a single host. This guide covers connecting, configuring, and managing multiple OAK cameras, ensuring efficient operation and data synchronization.
+- [Resolution Techniques for NNs](https://docs.luxonis.com/software-v3/depthai/tutorials/resolution-techniques.md): This guide covers handling aspect ratio mismatches, using cropping, stretching, and letterboxing, and displaying detections in high resolution to optimize performance and accuracy.
+- [Optimizing FPS & Latency](https://docs.luxonis.com/software-v3/depthai/tutorials/optimizing.md): Optimize FPS and latency on OAK devices with DepthAI. This guide provides tips on adjusting configurations, measuring operation times, and reducing latency in AI pipelines for improved performance.
+- [Holistic Record and Replay](https://docs.luxonis.com/software-v3/depthai/tutorials/holistic-record-replay.md): Record and replay data for easier development and testing.
+- [DepthAI V3 Porting Guide](https://docs.luxonis.com/software-v3/depthai/tutorials/v2-vs-v3.md)
+- [Power Profiles](https://docs.luxonis.com/software-v3/depthai/tutorials/powerprofiles.md): Optimize FPS and latency on OAK devices with DepthAI. This guide provides tips on adjusting configurations, measuring operation times, and reducing latency in AI pipelines for improved performance.
+- [Snaps](https://docs.luxonis.com/software-v3/depthai/tutorials/snaps.md): Snaps let you send images and data directly to Luxonis Hub, making it easy to build high-quality datasets, organize visual content, and securely store important captures for your computer vision projects.
+- [Python API](https://docs.luxonis.com/software-v3/depthai/api/python.md): Luxonis DepthAI Python API allows for easy integration with OAK devices, supporting AI, computer vision, and depth perception tasks.
+- [C++ API](https://docs.luxonis.com/software-v3/depthai/api/cpp.md): Luxonis DepthAI C++ API allows for easy integration with OAK devices, supporting AI, computer vision, and depth perception tasks.
+- [Java API](https://docs.luxonis.com/software-v3/depthai/api/java.md): Java API is a community contribution.
+- [DepthAI ROS](https://docs.luxonis.com/software-v3/depthai/ros.md): DepthAI ROS integrates OAK devices with ROS, enabling RGB-D sensing and on-device AI inference.The API includes filters for data handling and custom converters for tailored applications.
+- [Driver](https://docs.luxonis.com/software-v3/depthai/ros/driver.md): The DepthAI ROS Driver allows OAK cameras to operate as ROS2 Components, enabling customization via ROS parameters. It supports launching multiple cameras, configuring sensors and managing neural networks.
+- [Driver Parameters](https://docs.luxonis.com/software-v3/depthai/ros/parameters.md): List of parameters.
+- [Build from Source](https://docs.luxonis.com/software-v3/depthai/ros/build-from-source.md): Build DepthAI & DepthAI ROS from source for custom AI, vision, and depth applications on OAK devices. This guide covers dependencies, setup procedures and Docker usage.
+- [ROS Bridge](https://docs.luxonis.com/software-v3/depthai/ros/ros-bridge.md): DepthAI Bridge allows creating pipelines in a more controlled way using C++ DepthAI API and ROS message converters
+- [Hub Integration](https://docs.luxonis.com/software-v3/depthai/ros/hub-integration.md): DepthAI Hub allows easy integration and maintaining of your ROS projects
+- [OAK Viewer](https://docs.luxonis.com/software-v3/depthai/tools/oak-viewer.md): OAK Viewer is a GUI tool for real-time visualization and configuration of OAK cameras based on DepthAI v3. It supports USB and PoE cameras, allowing you to run demos, visualize streams, and configure AI models and camera settings.
+- [OAK Visualizer](https://docs.luxonis.com/software-v3/depthai/tools/oak-visualizer.md)
+- [DepthAI Pipeline Graph](https://docs.luxonis.com/software-v3/depthai/tools/pipeline-graph.md): A tool for dynamically creating graphs of DepthAI pipelines, aiding in debugging and gaining insights into pipeline configurations.
+- [Release Notes](https://docs.luxonis.com/software-v3/depthai/release-notes.md): Release notes to latest version of DepthAI.
+- [AI](https://docs.luxonis.com/software-v3/ai-inference.md): Everything one needs to know about how AI models are used across the Luxonis AI ecosystem.
+- [Model Source](https://docs.luxonis.com/software-v3/ai-inference/model-source.md): Get pre-trained AI models or train your own with Luxonis training tools.
+- [Model Zoo](https://docs.luxonis.com/software-v3/ai-inference/model-source/zoo.md): Collection of neural network models prepared for inference on Luxonis devices.
+- [Training](https://docs.luxonis.com/software-v3/ai-inference/model-source/training.md): Everything one needs to know about the training process of AI Models in the context of Luxonis ecosystem.
+- [DataDreamer](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/datadreamer.md): DataDreamer by DepthAI allows for the creation of annotated datasets using generative AI and computer vision models. It generates synthetic data, labels datasets automatically, and trains efficient edge AI models without relying on real-world data.
+- [API reference](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/datadreamer/api-reference.md)
+- [LuxonisML](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-ml.md): Top-level introduction to LuxonisML
+- [LuxonisDataset](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-ml/luxonis-dataset.md): Learn how to use LuxonisDataset to create and manage datasets in the Luxonis Data Format
+- [LuxonisParser](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-ml/luxonis-parser.md): Learn how to use LuxonisParser to easily create a dataset from several common dataset formats
+- [LuxonisLoader](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-ml/luxonis-loader.md): Learn how to work with LuxonisLoader to use datasets in your machine learning pipelines
+- [API reference](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-ml/api-reference.md)
+- [LuxonisTrain](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train.md): Top-level introduction to LuxonisTrain
+- [Concepts](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/concepts.md): Core concepts for configuring and customizing your LuxonisTrain workflows.
+- [Data Preparation](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/data-preparation.md): Data preparation for training custom models using LuxonisTrain
+- [Training](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/training.md): Training custom models using LuxonisTrain
+- [Evaluation](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/evaluation.md): LuxonisTrain evaluation
+- [Exporting](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/exporting.md): Exporting custom models using LuxonisTrain
+- [API reference](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/luxonis-train/api-reference.md)
+- [Tutorials](https://docs.luxonis.com/software-v3/ai-inference/model-source/training/tutorials.md): Learn how to train neural networks for DepthAI devices. This guide includes Jupyter notebook tutorials for tasks like image classification, object detection, and semantic segmentation.
+- [Conversion](https://docs.luxonis.com/software-v3/ai-inference/conversion.md): Learn how to convert a model to a format ready to be deployed on Luxonis devices.
+- [Concepts](https://docs.luxonis.com/software-v3/ai-inference/conversion/concepts.md)
+- [To ONNX](https://docs.luxonis.com/software-v3/ai-inference/conversion/onnx-conversion.md): Conversion to ONNX from various model formats
+- [RVC Conversion](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion.md)
+- [Offline Conversion](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/offline.md)
+- [ModelConverter](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/offline/modelconverter.md): Supports conversion of models to formats compatible with with all generations of Luxonis cameras.
+- [OpenVino (RVC2 & RVC3)](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/offline/openvino.md): Manual conversion for RVC2 and RVC3.
+- [SNPE (RVC4)](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/offline/snpe.md): Manual conversion of models for RVC4.
+- [Online Conversion](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/online.md)
+- [HubAI](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/online/hubai.md): Runs conversion online using HubAI.
+- [Blobconverter (legacy)](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/online/blobconverter.md): Supports conversion of models to formats compatible with RVC2 generation of Luxonis cameras.
+- [YOLO Simplified Conversion (legacy)](https://docs.luxonis.com/software-v3/ai-inference/conversion/rvc-conversion/online/yolo.md)
+- [Troubleshooting](https://docs.luxonis.com/software-v3/ai-inference/conversion/troubleshooting.md): Troubleshooting guidelines for model conversion.
+- [Supported Operations](https://docs.luxonis.com/software-v3/ai-inference/conversion/supported-ops.md)
+- [Tutorials](https://docs.luxonis.com/software-v3/ai-inference/conversion/tutorials.md): Learn how to convert AI models using our HubAI SDK for online conversion.
+- [Inference](https://docs.luxonis.com/software-v3/ai-inference/inference.md)
+- [DepthAI Nodes](https://docs.luxonis.com/software-v3/ai-inference/inference/depthai-nodes.md)
+- [API reference](https://docs.luxonis.com/software-v3/ai-inference/inference/depthai-nodes/api-reference.md)
+- [OAK Examples](https://docs.luxonis.com/software-v3/ai-inference/inference/oak-examples.md)
+- [Benchmarking](https://docs.luxonis.com/software-v3/ai-inference/benchmarking.md)
+- [NN Archive](https://docs.luxonis.com/software-v3/ai-inference/nn-archive.md)
+- [Integrations](https://docs.luxonis.com/software-v3/ai-inference/integrations.md): Learn how to integrate model from outside resources inside our platform.
+- [NVIDIA TAO](https://docs.luxonis.com/software-v3/ai-inference/integrations/nvidia-tao.md): Nvidia TAO integration
+- [Ultralytics](https://docs.luxonis.com/software-v3/ai-inference/integrations/ultralytics.md): Ultralytics integration
+- [Roboflow Universe](https://docs.luxonis.com/software-v3/ai-inference/integrations/roboflow-universe.md): Roboflow Universe integration
+- [Roboflow Workflows](https://docs.luxonis.com/software-v3/ai-inference/integrations/roboflow-workflows.md): Roboflow Workflows integration
+- [Luxonis OS](https://docs.luxonis.com/software-v3/sw-stack/luxonis-os.md)
+- [Troubleshooting](https://docs.luxonis.com/software-v3/troubleshooting.md): Troubleshooting section
+- [My App is slow](https://docs.luxonis.com/software-v3/troubleshooting/my-app-is-slow.md)
+- [My device is bricked](https://docs.luxonis.com/software-v3/troubleshooting/my-device-is-bricked.md)
+- [Neural Network issues](https://docs.luxonis.com/software-v3/troubleshooting/neural-network-issues.md)
+
+## Cloud
+- [Cloud](https://docs.luxonis.com/cloud.md): Learn how to connect devices, operate fleets, manage models, and integrate Luxonis Hub into your product.
+- [Getting started](https://docs.luxonis.com/cloud/hub.md): Luxonis Hub is the OAK-centered control plane for device management, app lifecycle, remote access, and customer integrations.
+- [Device Setup](https://docs.luxonis.com/cloud/hub/connect-oak.md): Connect an OAK4 device to Luxonis Hub through the current OAK Viewer adoption flow.
+- [Use cases](https://docs.luxonis.com/cloud/hub/use-cases.md): See where Luxonis Hub fits in fleet operations, prototype work, and customer-facing product integrations.
+- [Release Notes](https://docs.luxonis.com/cloud/hub/release-notes.md): Release notes for the latest version of Luxonis Hub.
+- [Device Management](https://docs.luxonis.com/cloud/features/device-management.md)
+- [OTA Updates](https://docs.luxonis.com/cloud/features/device-management/ota-updates.md)
+- [Web Terminal](https://docs.luxonis.com/cloud/features/device-management/webterminal.md)
+- [Apps](https://docs.luxonis.com/cloud/features/application-management.md)
+- [App Store](https://docs.luxonis.com/cloud/features/application-management/app-store.md)
+- [Manage Applications](https://docs.luxonis.com/cloud/features/application-management/manage-applications.md)
+- [Application Logs](https://docs.luxonis.com/cloud/features/application-management/application-logs.md)
+- [Live View and Static Frontend](https://docs.luxonis.com/cloud/features/application-management/live-view-and-static-frontend.md)
+- [Uploading Custom Applications](https://docs.luxonis.com/cloud/features/application-management/uploading-applications.md)
+- [Snaps](https://docs.luxonis.com/cloud/features/event-storage/snaps.md)
+- [AI & Models](https://docs.luxonis.com/cloud/hubai.md): Collection of models ready to be deployed in Luxonis ecosystem.
+- [Quick Conversion](https://docs.luxonis.com/cloud/hubai/quick-conversion.md): A quick cloud tool for converting raw AI models into RVC-compiled formats.
+- [Concepts](https://docs.luxonis.com/cloud/hubai/model-registry/concepts.md)
+- [Preparation](https://docs.luxonis.com/cloud/hubai/model-registry/preparation.md)
+- [Upload/Download](https://docs.luxonis.com/cloud/hubai/model-registry/upload-download.md)
+- [Detailed Conversion](https://docs.luxonis.com/cloud/hubai/model-registry/detailed-conversion.md): A detailed cloud workflow for converting raw AI models into RVC-compiled formats.
+- [Models SDK](https://docs.luxonis.com/cloud/hubai/model-registry/hubai-sdk.md)
+- [Introduction](https://docs.luxonis.com/cloud/api/introduction.md): Start here to understand Luxonis Hub APIs, the automation guides, and the difference between device/application workflows and AI/models automation.
+- [API keys](https://docs.luxonis.com/cloud/api/api-keys.md): Learn how to create, manage, and use API keys for authenticating against Luxonis Hub APIs.
+- [About GraphQL](https://docs.luxonis.com/cloud/api/graphql.md): Understand how to call the Luxonis Hub GraphQL control API, what public surface to use, and how to shape requests.
+- [Guides](https://docs.luxonis.com/cloud/api/guides.md): Step-by-step guides showing how to implement specific use cases with the Luxonis Hub GraphQL API.
+- [Integration architecture](https://docs.luxonis.com/cloud/api/guides/integration-architecture.md): Use the canonical customer-owned frontend/backend architecture for Luxonis Hub integrations.
+- [Streaming and visualizer](https://docs.luxonis.com/cloud/api/guides/streaming-and-visualizer.md): Learn the recommended Luxonis Hub streaming flow for customer portals and when to use custom rendering.
+- [Device management](https://docs.luxonis.com/cloud/api/guides/device-management.md): List devices, inspect device state, and choose the next control-plane action with the Luxonis Hub GraphQL API.
+- [Working with Snaps](https://docs.luxonis.com/cloud/api/guides/snaps.md): Learn how to query, filter, and delete snaps using Luxonis Hub GraphQL API.
+- [Control API](https://docs.luxonis.com/cloud/api/reference/control-api.md): Reference for the Luxonis Hub GraphQL control API.
+- [Schema](https://docs.luxonis.com/cloud/api/reference/control-api/schema.md): Look up the Luxonis Hub GraphQL schema endpoint, public integration boundary, and common inspection workflows.
+- [Queries](https://docs.luxonis.com/cloud/api/reference/control-api/queries.md): Exact reference for supported public queries in the Luxonis Hub GraphQL control API.
+- [Mutations](https://docs.luxonis.com/cloud/api/reference/control-api/mutations.md): Exact reference for supported public mutations in the Luxonis Hub GraphQL control API.
+- [Types](https://docs.luxonis.com/cloud/api/reference/control-api/types.md): Reference for public object and connection types in the Luxonis Hub GraphQL control API.
+- [Models API](https://docs.luxonis.com/cloud/api/reference/models-api.md): Reference for the models API used for advanced automation of model registry and conversion workflows.
+- [Changelog](https://docs.luxonis.com/cloud/api/changelog.md): Track public Luxonis Hub API changes, deprecations, and upcoming removals.
+- [Account Settings](https://docs.luxonis.com/cloud/organization/account.md): Update your personal profile, connected sign-in methods, password, and two-factor authentication in Luxonis Hub.
+- [Team & Members](https://docs.luxonis.com/cloud/organization/team.md): Manage your team name, team identifier, members, API keys, billing, and quotas in Luxonis Hub.
+- [Firewall and network](https://docs.luxonis.com/cloud/advanced/firewall-network.md): Set your firewall for seamless Agent function.
+- [Luxonis Hub Agent](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent.md): The Hub agent is a main component that allows communication between the OAK camera and the cloud services
+- [Installation](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent/installation.md): Check if your system meets requirements for the agent installation.
+- [CLI](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent/cli.md): Learn the basics commands that allows you to interact with the agent and the its connected devices.
+- [Configuration](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent/configuration.md): Learn how to configure Luxonis Hub Agent
+- [Firewall and network](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent/firewall-network.md): Set your firewall for seamless Agent function.
+- [Troubleshoot](https://docs.luxonis.com/cloud/advanced/legacy/hub-agent/troubleshooting.md): Learn how to troubleshoot the problems with the Agent.
+- [Perception Apps](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps.md): Perception Apps enable easy development and deployment of AI applications with OAK cameras, enhancing advanced perception capabilities through a streamlined platform.
+- [Get started](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/get-started.md)
+- [Luxonis Hub Studio](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-studio.md)
+- [Configuration](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/configuration.md)
+- [Runtime Images](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/images.md)
+- [Python SDK](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library.md)
+- [LiveView](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library/liveview.md)
+- [Events](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library/events.md)
+- [Frame Buffer](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library/frame-buffer.md)
+- [Replay](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library/replay.md)
+- [API reference](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/robothub-library/api-reference.md)
+- [Examples](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples.md): Explore Luxonis Hub's perception app examples, including OCR, QR Code Reader, Depth & Detection, Demographic & Sentiment Analysis, and more. Start developing with comprehensive guides.
+- [Template app](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/template-app.md)
+- [OCR](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/ocr.md)
+- [QR Code Reader](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/qr-reader.md)
+- [Depth & Detection Live View](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/depth-detect-lv.md)
+- [Demographic & Sentiment Analysis](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/demographic-sentiment-analysis.md)
+- [Video recording app](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/video-rec.md)
+- [Working with Events](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/events-work.md)
+- [Youtube Streaming](https://docs.luxonis.com/cloud/advanced/legacy/perception-apps/examples/youtube-stream.md)
+
+## DepthAI v2
+- [DepthAI v2](https://docs.luxonis.com/software.md): Explore Luxonis DepthAI software documentation, tutorials, and API references for developing and deploying vision pipelines on OAK cameras
+- [Release Notes](https://docs.luxonis.com/software/release-notes.md): Release notes to latest version of DepthAI.
+- [Device](https://docs.luxonis.com/software/depthai-components/device.md): The DepthAI Device API manages OAK cameras and RAE robots, handling AI inference, computer vision, and depth processing with the Robotics Vision Core (RVC).
+- [Pipeline](https://docs.luxonis.com/software/depthai-components/pipeline.md): The DepthAI Pipeline API enables creating and managing processing pipelines for OAK devices, linking nodes for AI, vision, and depth tasks. It supports OpenVINO integration and multi-device setups.
+- [Nodes](https://docs.luxonis.com/software/depthai-components/nodes.md): Nodes are building blocks of your application. Each node provides specific functionality on the DepthAI, with a set of configurable properties and inputs/outputs.
+- [Camera](https://docs.luxonis.com/software/depthai-components/nodes/camera.md)
+- [Cast](https://docs.luxonis.com/software/depthai-components/nodes/cast_node.md)
+- [ColorCamera](https://docs.luxonis.com/software/depthai-components/nodes/color_camera.md)
+- [EdgeDetector](https://docs.luxonis.com/software/depthai-components/nodes/edge_detector.md)
+- [FeatureTracker](https://docs.luxonis.com/software/depthai-components/nodes/feature_tracker.md)
+- [ImageAlign](https://docs.luxonis.com/software/depthai-components/nodes/image_align.md)
+- [ImageManip](https://docs.luxonis.com/software/depthai-components/nodes/image_manip.md)
+- [IMU](https://docs.luxonis.com/software/depthai-components/nodes/imu.md)
+- [MessageDemux](https://docs.luxonis.com/software/depthai-components/nodes/message_demux.md)
+- [MobilenetDetectionNetwork](https://docs.luxonis.com/software/depthai-components/nodes/mobilenet_detection_network.md)
+- [MobilenetSpatialDetectionNetwork](https://docs.luxonis.com/software/depthai-components/nodes/mobilenet_spatial_detection_network.md)
+- [MonoCamera](https://docs.luxonis.com/software/depthai-components/nodes/mono_camera.md)
+- [NeuralNetwork](https://docs.luxonis.com/software/depthai-components/nodes/neural_network.md)
+- [ObjectTracker](https://docs.luxonis.com/software/depthai-components/nodes/object_tracker.md)
+- [PointCloud](https://docs.luxonis.com/software/depthai-components/nodes/pointcloud.md)
+- [Script](https://docs.luxonis.com/software/depthai-components/nodes/script.md)
+- [SpatialLocationCalculator](https://docs.luxonis.com/software/depthai-components/nodes/spatial_location_calculator.md)
+- [SpiIn](https://docs.luxonis.com/software/depthai-components/nodes/spi_in.md)
+- [SpiOut](https://docs.luxonis.com/software/depthai-components/nodes/spi_out.md)
+- [StereoDepth](https://docs.luxonis.com/software/depthai-components/nodes/stereo_depth.md)
+- [Sync](https://docs.luxonis.com/software/depthai-components/nodes/sync.md)
+- [SystemLogger](https://docs.luxonis.com/software/depthai-components/nodes/system_logger.md)
+- [ToF](https://docs.luxonis.com/software/depthai-components/nodes/tof.md)
+- [UVC](https://docs.luxonis.com/software/depthai-components/nodes/uvc.md)
+- [VideoEncoder](https://docs.luxonis.com/software/depthai-components/nodes/video_encoder.md)
+- [Warp](https://docs.luxonis.com/software/depthai-components/nodes/warp.md)
+- [XLinkIn](https://docs.luxonis.com/software/depthai-components/nodes/xlink_in.md)
+- [XLinkOut](https://docs.luxonis.com/software/depthai-components/nodes/xlink_out.md)
+- [YoloDetectionNetwork](https://docs.luxonis.com/software/depthai-components/nodes/yolo_detection_network.md)
+- [YoloSpatialDetectionNetwork](https://docs.luxonis.com/software/depthai-components/nodes/yolo_spatial_detection_network.md)
+- [Messages](https://docs.luxonis.com/software/depthai-components/messages.md): DepthAI Messages enable communication between nodes in a pipeline. Nodes exchange information through these messages, which can be created and sent either on the device or from a host computer.
+- [Buffer](https://docs.luxonis.com/software/depthai-components/messages/buffer.md)
+- [CameraControl](https://docs.luxonis.com/software/depthai-components/messages/camera_control.md)
+- [EdgeDetectorConfig](https://docs.luxonis.com/software/depthai-components/messages/edge_detector_config.md)
+- [EncodedFrame](https://docs.luxonis.com/software/depthai-components/messages/encodedframe.md)
+- [FeatureTrackerConfig](https://docs.luxonis.com/software/depthai-components/messages/feature_tracker_config.md)
+- [ImageAlignConfig](https://docs.luxonis.com/software/depthai-components/messages/image_align_config.md)
+- [ImageManipConfig](https://docs.luxonis.com/software/depthai-components/messages/image_manip_config.md)
+- [ImgDetections](https://docs.luxonis.com/software/depthai-components/messages/img_detections.md)
+- [ImgFrame](https://docs.luxonis.com/software/depthai-components/messages/img_frame.md)
+- [ImuData](https://docs.luxonis.com/software/depthai-components/messages/imu_data.md)
+- [MessageGroup](https://docs.luxonis.com/software/depthai-components/messages/message_group.md)
+- [NNData](https://docs.luxonis.com/software/depthai-components/messages/nn_data.md)
+- [PointCloudConfig](https://docs.luxonis.com/software/depthai-components/messages/pointcloud_config.md)
+- [PointCloudData](https://docs.luxonis.com/software/depthai-components/messages/pointcloud_data.md)
+- [SpatialImgDetections](https://docs.luxonis.com/software/depthai-components/messages/spatial_img_detections.md)
+- [SpatialLocationCalculatorConfig](https://docs.luxonis.com/software/depthai-components/messages/spatial_location_calculator_config.md)
+- [SpatialLocationCalculatorData](https://docs.luxonis.com/software/depthai-components/messages/spatial_location_calculator_data.md)
+- [StereoDepthConfig](https://docs.luxonis.com/software/depthai-components/messages/stereo_depth_config.md)
+- [SystemInformation](https://docs.luxonis.com/software/depthai-components/messages/system_information.md)
+- [TofConfig](https://docs.luxonis.com/software/depthai-components/messages/tof_config.md)
+- [Tracklets](https://docs.luxonis.com/software/depthai-components/messages/tracklets.md)
+- [TrackedFeatures](https://docs.luxonis.com/software/depthai-components/messages/tracked_features.md)
+- [Bootloader](https://docs.luxonis.com/software/depthai-components/bootloader.md): The DepthAI Bootloader initializes OAK cameras, handling boot processes, configurations, and updates via the depthai library.
+- [Getting Started](https://docs.luxonis.com/software/depthai/getting-started.md): Get started with application development for your OAK device.
+- [Manual DepthAI installation](https://docs.luxonis.com/software/depthai/manual-install.md): Step-by-step guide for manual installation of DepthAI and all dependencies on various platforms.
+- [Hello World](https://docs.luxonis.com/software/depthai/hello-world.md): Guide through the code of an application for streaming color video with object detection using a neural network running on the camera.
+- [Multi-Device Setup](https://docs.luxonis.com/software/depthai/multi-device-setup.md): Learn how to set up multiple DepthAI devices on a single host. This guide covers connecting, configuring, and managing multiple OAK cameras, ensuring efficient operation and data synchronization.
+- [Standalone mode](https://docs.luxonis.com/software/depthai/standalone.md): Standalone mode allows you to run applications (e.g., people/vehicle counting, LPR, fall detection) without a host computer. Learn how to leverage this feature for enhanced autonomy and efficiency.
+- [On Device Programming](https://docs.luxonis.com/software/depthai/on-device-programming.md)
+- [Resolution Techniques for NNs](https://docs.luxonis.com/software/depthai/resolution-techniques.md): This guide covers handling aspect ratio mismatches, using cropping, stretching, and letterboxing, and displaying detections in high resolution to optimize performance and accuracy.
+- [Pipeline Debugging](https://docs.luxonis.com/software/depthai/debugging.md): Debugging tools offer robust solutions for identifying and resolving issues in AI pipelines on OAK devices, including logging configurations, resource monitoring, performance optimization, and troubleshooting.
+- [Optimizing FPS & Latency](https://docs.luxonis.com/software/depthai/optimizing.md): Optimize FPS and latency on OAK devices with DepthAI. This guide provides tips on adjusting configurations, measuring operation times, and reducing latency in AI pipelines for improved performance.
+- [Depthai Examples](https://docs.luxonis.com/software/depthai/examples.md): DepthAI's extensive code examples demonstrates AI, vision, and depth capabilities on OAK devices. These examples cover various applications and configurations, serving as practical guides for developers.
+- [Crash Report](https://docs.luxonis.com/software/depthai/examples/crash_report.md)
+- [Calibration Load](https://docs.luxonis.com/software/depthai/examples/calibration_load.md)
+- [Calibration Reader](https://docs.luxonis.com/software/depthai/examples/calibration_reader.md)
+- [Calibration Flash](https://docs.luxonis.com/software/depthai/examples/calibration_flash.md)
+- [Calibration Flash V5](https://docs.luxonis.com/software/depthai/examples/calibration_flash_v5.md)
+- [Camera Undistort](https://docs.luxonis.com/software/depthai/examples/camera_undistort.md)
+- [Casting NN Blur](https://docs.luxonis.com/software/depthai/examples/cast_blur.md)
+- [Casting NN Subtraction](https://docs.luxonis.com/software/depthai/examples/cast_diff.md)
+- [Casting NN Concatenation](https://docs.luxonis.com/software/depthai/examples/cast_concat.md)
+- [Bootloader Config](https://docs.luxonis.com/software/depthai/examples/bootloader_config.md)
+- [Bootloader Version](https://docs.luxonis.com/software/depthai/examples/bootloader_version.md)
+- [Flash User Bootloader](https://docs.luxonis.com/software/depthai/examples/flash_user_bootloader.md)
+- [Flashing USB Recovery Header](https://docs.luxonis.com/software/depthai/examples/flash_usb_recovery_header.md)
+- [Poe Set IP](https://docs.luxonis.com/software/depthai/examples/poe_set_ip.md)
+- [Flash Bootloader](https://docs.luxonis.com/software/depthai/examples/flash_bootloader.md)
+- [Image Manip Rotate](https://docs.luxonis.com/software/depthai/examples/image_manip_rotate.md)
+- [Rgb Rotate Warp](https://docs.luxonis.com/software/depthai/examples/rgb_rotate_warp.md)
+- [Image Manip Tiling](https://docs.luxonis.com/software/depthai/examples/image_manip_tiling.md)
+- [Feature Detector](https://docs.luxonis.com/software/depthai/examples/feature_detector.md)
+- [Feature Tracker](https://docs.luxonis.com/software/depthai/examples/feature_tracker.md)
+- [Edge Detector](https://docs.luxonis.com/software/depthai/examples/edge_detector.md)
+- [Rgb Preview](https://docs.luxonis.com/software/depthai/examples/rgb_preview.md)
+- [Autoexposure Roi](https://docs.luxonis.com/software/depthai/examples/autoexposure_roi.md)
+- [Rgb Video](https://docs.luxonis.com/software/depthai/examples/rgb_video.md)
+- [Rgb Scene](https://docs.luxonis.com/software/depthai/examples/rgb_scene.md)
+- [Rgb Camera Control](https://docs.luxonis.com/software/depthai/examples/rgb_camera_control.md)
+- [Mono Full Resolution Saver](https://docs.luxonis.com/software/depthai/examples/mono_full_resolution_saver.md)
+- [Mono Preview Alternate Pro](https://docs.luxonis.com/software/depthai/examples/mono_preview_alternate_pro.md)
+- [Mono Preview](https://docs.luxonis.com/software/depthai/examples/mono_preview.md)
+- [Mono Camera Control](https://docs.luxonis.com/software/depthai/examples/mono_camera_control.md)
+- [Queue Add Callback](https://docs.luxonis.com/software/depthai/examples/queue_add_callback.md)
+- [Opencv Support](https://docs.luxonis.com/software/depthai/examples/opencv_support.md)
+- [Latency Measurement](https://docs.luxonis.com/software/depthai/examples/latency_measurement.md)
+- [Device Queue Event](https://docs.luxonis.com/software/depthai/examples/device_queue_event.md)
+- [Device Information](https://docs.luxonis.com/software/depthai/examples/device_information.md)
+- [Object Tracker Video](https://docs.luxonis.com/software/depthai/examples/object_tracker_video.md)
+- [Spatial Object Tracker](https://docs.luxonis.com/software/depthai/examples/spatial_object_tracker.md)
+- [Object Tracker](https://docs.luxonis.com/software/depthai/examples/object_tracker.md)
+- [Video Mobilenet](https://docs.luxonis.com/software/depthai/examples/video_mobilenet.md)
+- [Rgb Mobilenet 4K](https://docs.luxonis.com/software/depthai/examples/rgb_mobilenet_4k.md)
+- [Rgb Mobilenet](https://docs.luxonis.com/software/depthai/examples/rgb_mobilenet.md)
+- [Mono Mobilenet](https://docs.luxonis.com/software/depthai/examples/mono_mobilenet.md)
+- [Rgb Encoding](https://docs.luxonis.com/software/depthai/examples/rgb_encoding.md)
+- [Rgb Mono Encoding](https://docs.luxonis.com/software/depthai/examples/rgb_mono_encoding.md)
+- [Encoding Max Limit](https://docs.luxonis.com/software/depthai/examples/encoding_max_limit.md)
+- [Disparity Encoding](https://docs.luxonis.com/software/depthai/examples/disparity_encoding.md)
+- [Rgb Full Resolution Saver](https://docs.luxonis.com/software/depthai/examples/rgb_full_resolution_saver.md)
+- [Rgb Encoding Mono Mobilenet Depth](https://docs.luxonis.com/software/depthai/examples/rgb_encoding_mono_mobilenet_depth.md)
+- [Rotated Spatial Detections](https://docs.luxonis.com/software/depthai/examples/rotated_spatial_detections.md)
+- [Mono Depth Mobilenetssd](https://docs.luxonis.com/software/depthai/examples/mono_depth_mobilenetssd.md)
+- [Rgb Encoding Mono Mobilenet](https://docs.luxonis.com/software/depthai/examples/rgb_encoding_mono_mobilenet.md)
+- [Multiple Devices](https://docs.luxonis.com/software/depthai/examples/multiple_devices.md)
+- [Rgb Encoding Mobilenet](https://docs.luxonis.com/software/depthai/examples/rgb_encoding_mobilenet.md)
+- [Concat Multi Input](https://docs.luxonis.com/software/depthai/examples/concat_multi_input.md)
+- [Normalization Multi Input](https://docs.luxonis.com/software/depthai/examples/normalization_multi_input.md)
+- [RGB-ToF Align](https://docs.luxonis.com/software/depthai/examples/tof_align.md)
+- [RGB-Thermal Align](https://docs.luxonis.com/software/depthai/examples/thermal_align.md)
+- [RGB-Left Align](https://docs.luxonis.com/software/depthai/examples/image_align.md)
+- [Thermal Camera](https://docs.luxonis.com/software/depthai/examples/thermal_camera.md)
+- [Script Get Ip](https://docs.luxonis.com/software/depthai/examples/script_get_ip.md)
+- [Script Change Pipeline Flow](https://docs.luxonis.com/software/depthai/examples/script_change_pipeline_flow.md)
+- [Script Http Server](https://docs.luxonis.com/software/depthai/examples/script_http_server.md)
+- [Script Forward Frames](https://docs.luxonis.com/software/depthai/examples/script_forward_frames.md)
+- [Script Emmc Access](https://docs.luxonis.com/software/depthai/examples/script_emmc_access.md)
+- [Script Json Communication](https://docs.luxonis.com/software/depthai/examples/script_json_communication.md)
+- [Script Nndata Example](https://docs.luxonis.com/software/depthai/examples/script_nndata_example.md)
+- [Script Camera Control](https://docs.luxonis.com/software/depthai/examples/script_camera_control.md)
+- [Script Mjpeg Server](https://docs.luxonis.com/software/depthai/examples/script_mjpeg_server.md)
+- [Script UART](https://docs.luxonis.com/software/depthai/examples/script_uart.md)
+- [Script Http Client](https://docs.luxonis.com/software/depthai/examples/script_http_client.md)
+- [Stereo Depth Video](https://docs.luxonis.com/software/depthai/examples/stereo_depth_video.md)
+- [Depth Crop Control](https://docs.luxonis.com/software/depthai/examples/depth_crop_control.md)
+- [Depth Preview](https://docs.luxonis.com/software/depthai/examples/depth_preview.md)
+- [Stereo Depth Custom Mesh](https://docs.luxonis.com/software/depthai/examples/stereo_depth_custom_mesh.md)
+- [Depth Post Processing](https://docs.luxonis.com/software/depthai/examples/depth_post_processing.md)
+- [Stereo Depth From Host](https://docs.luxonis.com/software/depthai/examples/stereo_depth_from_host.md)
+- [Rgb Depth Aligned](https://docs.luxonis.com/software/depthai/examples/rgb_depth_aligned.md)
+- [Tof Depth](https://docs.luxonis.com/software/depthai/examples/tof_depth.md)
+- [Imu Accelerometer Gyroscope](https://docs.luxonis.com/software/depthai/examples/imu_accelerometer_gyroscope.md)
+- [Imu Rotation Vector](https://docs.luxonis.com/software/depthai/examples/imu_rotation_vector.md)
+- [PointCloud Control](https://docs.luxonis.com/software/depthai/examples/pointcloud_control.md)
+- [PointCloud Visualization](https://docs.luxonis.com/software/depthai/examples/pointcloud_visualization.md)
+- [Spatial Mobilenet](https://docs.luxonis.com/software/depthai/examples/spatial_mobilenet.md)
+- [Spatial Calculator Multi Roi](https://docs.luxonis.com/software/depthai/examples/spatial_calculator_multi_roi.md)
+- [Spatial Tiny Yolo](https://docs.luxonis.com/software/depthai/examples/spatial_tiny_yolo.md)
+- [Spatial Mobilenet Mono](https://docs.luxonis.com/software/depthai/examples/spatial_mobilenet_mono.md)
+- [Spatial Location Calculator](https://docs.luxonis.com/software/depthai/examples/spatial_location_calculator.md)
+- [Warp Mesh](https://docs.luxonis.com/software/depthai/examples/warp_mesh.md)
+- [Warp Mesh Interactive](https://docs.luxonis.com/software/depthai/examples/warp_mesh_interactive.md)
+- [Thermal People Detection](https://docs.luxonis.com/software/depthai/examples/thermal_nn.md)
+- [Tiny Yolo](https://docs.luxonis.com/software/depthai/examples/tiny_yolo.md)
+- [YOLOv8 Nano](https://docs.luxonis.com/software/depthai/examples/yolov8_nano.md)
+- [System Information](https://docs.luxonis.com/software/depthai/examples/system_information.md)
+- [UVC Mono](https://docs.luxonis.com/software/depthai/examples/uvc_mono.md)
+- [UVC Disparity](https://docs.luxonis.com/software/depthai/examples/uvc_disparity.md)
+- [UVC RGB](https://docs.luxonis.com/software/depthai/examples/uvc_rgb.md)
+- [Feature Motion Estimation](https://docs.luxonis.com/software/depthai/examples/feature_motion_estimation.md)
+- [Demux Message Group](https://docs.luxonis.com/software/depthai/examples/demux_message_group.md)
+- [Depth Video Sync](https://docs.luxonis.com/software/depthai/examples/depth_video_sync.md)
+- [Imu Video Sync](https://docs.luxonis.com/software/depthai/examples/imu_video_sync.md)
+- [Scripts Sync](https://docs.luxonis.com/software/depthai/examples/scripts_sync.md)
+- [Computer Vision](https://docs.luxonis.com/software/perception/computer-vision.md)
+- [RGB-D](https://docs.luxonis.com/software/perception/rgb-d.md)
+- [Neural Networks](https://docs.luxonis.com/software/perception/neural-networks.md): Explore how to train, export, and integrate AI models on DepthAI devices. This guide covers performance measurement, optimization, and post-processing outputs.
+- [Spatial AI](https://docs.luxonis.com/software/perception/spatial-ai.md)
+- [DepthAI ROS](https://docs.luxonis.com/software/ros/depthai-ros.md): DepthAI ROS integrates OAK devices with ROS, enabling RGB-D sensing and on-device AI inference.The API includes filters for data handling and custom converters for tailored applications.
+- [Build from Source](https://docs.luxonis.com/software/ros/depthai-ros/build.md): Build DepthAI ROS from source for custom AI, vision, and depth applications on OAK devices. This guide covers dependencies, setup procedures and Docker usage.
+- [Driver](https://docs.luxonis.com/software/ros/depthai-ros/driver.md): The DepthAI ROS Driver allows OAK cameras to operate as ROS2 Components or ROS1 Nodelets, enabling customization via ROS parameters. It supports launching multiple cameras, configuring sensors and managing neural networks.
+- [VIO and SLAM](https://docs.luxonis.com/software/ros/vio-slam.md): This guide covers setting up SLAM projects, on-device SuperPoint for localization, and syncing frames with IMU messages for accurate mapping and navigation.
+- [Visualization (Foxglove)](https://docs.luxonis.com/software/ros/visualize-foxglove.md): Visualization of DepthAI ROS Driver data using free tool Foxglove Studio.
+- [Model Zoo](https://docs.luxonis.com/software/ai-inference/zoo.md): DepthAI Model Zoo offers a collection of neural network models for OAK and RAE devices. Models can be accessed via Python using the BlobConverter library, allowing integration into DepthAI applications.
+- [Conversion](https://docs.luxonis.com/software/ai-inference/conversion.md): Learn how to convert AI models to run on DepthAI devices using the BlobConverter tool. This guide covers converting models from frameworks like PyTorch and TensorFlow to the MyriadX blob format.
+- [Integrations](https://docs.luxonis.com/software/ai-inference/integrations.md): This guide covers simplified Yolo conversion (V5 to V8, Gold Yolo) and deploying custom computer vision models with Roboflow for effective results.
+- [Yolo](https://docs.luxonis.com/software/ai-inference/integrations/yolo.md)
+- [Roboflow](https://docs.luxonis.com/software/ai-inference/integrations/roboflow.md)
+- [Training](https://docs.luxonis.com/software/ai-inference/training.md): Learn how to train neural networks for DepthAI devices. This guide includes Jupyter notebook tutorials for tasks like image classification, object detection, and semantic segmentation.
+- [Post-processing](https://docs.luxonis.com/software/ai-inference/post-processing.md): This guide covers interpreting raw data, using predefined models like MobileNet and Yolo, and handling custom models for tasks such as object detection. It also provides practical examples for visual feedback and data analytics.
+- [Performance Optimization](https://docs.luxonis.com/software/ai-inference/performance.md): Optimize AI model performance on DepthAI devices with techniques like quantization, hardware acceleration, and Luxonis-specific optimization. This article also explains metrics such as latency, throughput and accuracy.
+- [YOLO models](https://docs.luxonis.com/software/ai-inference/yolo_models.md)
+- [DataDreamer](https://docs.luxonis.com/software/ai-inference/datadreamer.md): DataDreamer by DepthAI allows for the creation of annotated datasets using generative AI and computer vision models. It generates synthetic data, labels datasets automatically, and trains efficient edge AI models without relying on real-world data.
+- [API reference](https://docs.luxonis.com/software/ai-inference/datadreamer/api-reference.md)
+- [Python API](https://docs.luxonis.com/software/api/python.md): Luxonis DepthAI Python API allows for easy integration with OAK devices, supporting AI, computer vision, and depth perception tasks.
+- [C++ API](https://docs.luxonis.com/software/api/cpp.md): Luxonis DepthAI C++ API allows for easy integration with OAK devices, supporting AI, computer vision, and depth perception tasks.
+- [Java API](https://docs.luxonis.com/software/api/java.md): Java API is a community contribution.
