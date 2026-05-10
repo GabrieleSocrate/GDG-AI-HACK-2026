@@ -64,8 +64,6 @@ def parse_args():
     parser.add_argument("--contact_px", type=float, default=25.0)
     parser.add_argument("--lurker_seconds", type=float, default=5.0)
 
-    # Main optimization:
-    # video is shown every frame, inference runs in a separate thread.
     parser.add_argument("--detection_interval", type=float, default=0.45)
     parser.add_argument("--face_interval", type=float, default=1.20)
 
@@ -506,8 +504,7 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
         now = time.time()
 
         # -----------------------------------------------------
-        # ENROLLING: update bbox every detection interval.
-        # Main video loop collects owner crops every frame.
+        # ENROLLING
         # -----------------------------------------------------
 
         if phase == "enrolling":
@@ -566,8 +563,7 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
             continue
 
         # -----------------------------------------------------
-        # PROCESSING: compute OSNet embeddings from all saved crops.
-        # Video remains live because this runs in a separate thread.
+        # PROCESSING
         # -----------------------------------------------------
 
         if phase == "processing":
@@ -609,7 +605,7 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
             continue
 
         # -----------------------------------------------------
-        # MONITORING: run heavy models periodically.
+        # MONITORING
         # -----------------------------------------------------
 
         if phase == "monitoring":
@@ -729,44 +725,68 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
                     }
                 )
 
-            any_unknown_near_laptop = any(
-                r["identity"] == "UNKNOWN" and r["near_laptop"]
+            # -------------------------------------------------
+            # OWNER PRESENCE OVERRIDE
+            # -------------------------------------------------
+            # If the owner is visible, the system is disarmed.
+            # No alarm is triggered regardless of unknown people.
+
+            owner_present = any(
+                r["identity"] == "OWNER"
                 for r in person_results
             )
 
-            any_unknown_touching_laptop = any(
-                r["identity"] == "UNKNOWN" and r["touching_laptop"]
-                for r in person_results
-            )
+            if owner_present:
+                any_unknown_near_laptop = False
+                any_unknown_touching_laptop = False
+            else:
+                any_unknown_near_laptop = any(
+                    r["identity"] == "UNKNOWN" and r["near_laptop"]
+                    for r in person_results
+                )
+
+                any_unknown_touching_laptop = any(
+                    r["identity"] == "UNKNOWN" and r["touching_laptop"]
+                    for r in person_results
+                )
 
             with lock:
                 state["last_persons"] = persons
                 state["last_faces"] = faces
                 state["last_person_results"] = person_results
                 state["last_laptop_bbox"] = last_laptop_bbox
+                state["owner_present"] = owner_present
 
-                if any_unknown_near_laptop:
-                    if state["unknown_near_start_time"] is None:
-                        state["unknown_near_start_time"] = now
-                    unknown_near_duration = now - state["unknown_near_start_time"]
-                else:
+                if owner_present:
                     state["unknown_near_start_time"] = None
+                    state["unknown_near_duration"] = 0.0
                     unknown_near_duration = 0.0
 
-                state["unknown_near_duration"] = unknown_near_duration
+                elif any_unknown_near_laptop:
+                    if state["unknown_near_start_time"] is None:
+                        state["unknown_near_start_time"] = now
 
-                if any_unknown_touching_laptop:
-                    if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
-                        state["alarm_reason"] = "UNKNOWN person is touching the laptop."
-                        state["last_alarm_time"] = now
+                    unknown_near_duration = now - state["unknown_near_start_time"]
+                    state["unknown_near_duration"] = unknown_near_duration
 
-                elif unknown_near_duration >= args.lurker_seconds:
-                    if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
-                        state["alarm_reason"] = (
-                            f"UNKNOWN person stayed near the laptop for "
-                            f"{unknown_near_duration:.1f} seconds."
-                        )
-                        state["last_alarm_time"] = now
+                else:
+                    state["unknown_near_start_time"] = None
+                    state["unknown_near_duration"] = 0.0
+                    unknown_near_duration = 0.0
+
+                if not owner_present:
+                    if any_unknown_touching_laptop:
+                        if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
+                            state["alarm_reason"] = "UNKNOWN person is touching the laptop."
+                            state["last_alarm_time"] = now
+
+                    elif unknown_near_duration >= args.lurker_seconds:
+                        if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
+                            state["alarm_reason"] = (
+                                f"UNKNOWN person stayed near the laptop for "
+                                f"{unknown_near_duration:.1f} seconds."
+                            )
+                            state["last_alarm_time"] = now
 
             time.sleep(0.01)
 
@@ -778,7 +798,7 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: THREADED VIDEO + BACKGROUND INFERENCE ###")
+    print("### RUNNING VERSION: THREADED VIDEO + OWNER PRESENCE OVERRIDE ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] detection_interval={args.detection_interval}")
     print(f"[DEBUG] face_interval={args.face_interval}")
@@ -824,6 +844,7 @@ def main():
         "last_laptop_bbox": None,
         "protected_laptop_bbox": None,
 
+        "owner_present": False,
         "unknown_near_start_time": None,
         "unknown_near_duration": 0.0,
 
@@ -894,8 +915,8 @@ def main():
                 last_owner_bbox = state["last_owner_bbox"]
 
             # -----------------------------------------------------
-            # Enrollment: collect owner crops every frame using the
-            # latest valid bbox. This keeps embedding count high.
+            # Enrollment: collect owner crops every frame using
+            # the latest valid bbox.
             # -----------------------------------------------------
 
             if phase == "enrolling":
@@ -922,17 +943,17 @@ def main():
                 last_faces = list(state["last_faces"])
                 last_person_results = [dict(r) for r in state["last_person_results"]]
                 laptop_bbox_for_logic = state["last_laptop_bbox"]
-                protected_laptop_bbox = state["protected_laptop_bbox"]
                 unknown_near_duration = state["unknown_near_duration"]
                 alarm_reason = state["alarm_reason"]
                 body_crop_count = len(state["owner_body_crops"])
                 face_emb_count = len(state["owner_face_embeddings"])
+                owner_present = state["owner_present"]
 
                 if alarm_reason is not None:
                     state["alarm_reason"] = None
 
             # -----------------------------------------------------
-            # Alarm beep runs in main thread only when requested.
+            # Alarm beep.
             # -----------------------------------------------------
 
             if alarm_reason is not None:
@@ -1036,9 +1057,12 @@ def main():
                 draw_status(frame, status, (0, 255, 255))
 
             elif phase == "monitoring":
-                draw_status(frame, "MONITORING", (255, 255, 255))
+                if owner_present:
+                    draw_status(frame, "MONITORING - OWNER PRESENT: DISARMED", (0, 255, 0))
+                else:
+                    draw_status(frame, "MONITORING - OWNER ABSENT: ARMED", (255, 255, 255))
 
-                if unknown_near_duration > 0:
+                if unknown_near_duration > 0 and not owner_present:
                     cv2.putText(
                         frame,
                         f"UNKNOWN NEAR LAPTOP: {unknown_near_duration:.1f}s",
