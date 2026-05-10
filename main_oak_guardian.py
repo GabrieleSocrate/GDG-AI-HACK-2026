@@ -57,8 +57,14 @@ def parse_args():
 
     parser.add_argument("--enrollment_seconds", type=float, default=30.0)
 
-    parser.add_argument("--body_threshold", type=float, default=0.70)
-    parser.add_argument("--fused_threshold", type=float, default=0.65)
+    # Slightly lower thresholds for demo stability.
+    parser.add_argument("--body_threshold", type=float, default=0.60)
+    parser.add_argument("--fused_threshold", type=float, default=0.60)
+
+    # Separate threshold used only to decide whether the system should be disarmed.
+    # This makes owner_present more robust.
+    parser.add_argument("--owner_presence_threshold", type=float, default=0.50)
+    parser.add_argument("--owner_hold_seconds", type=float, default=5.0)
 
     parser.add_argument("--guard_px", type=float, default=140.0)
     parser.add_argument("--contact_px", type=float, default=25.0)
@@ -726,15 +732,33 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
                 )
 
             # -------------------------------------------------
-            # OWNER PRESENCE OVERRIDE
+            # ROBUST OWNER PRESENCE OVERRIDE
             # -------------------------------------------------
-            # If the owner is visible, the system is disarmed.
-            # No alarm is triggered regardless of unknown people.
+            # The system is disarmed if:
+            # 1) a person is classified as OWNER, OR
+            # 2) a person's final_score is above owner_presence_threshold, OR
+            # 3) the owner was seen recently within owner_hold_seconds.
 
-            owner_present = any(
+            owner_seen_now = any(
                 r["identity"] == "OWNER"
+                or r["final_score"] >= args.owner_presence_threshold
                 for r in person_results
             )
+
+            with lock:
+                if owner_seen_now:
+                    state["owner_last_seen_time"] = now
+
+                owner_last_seen_time = state["owner_last_seen_time"]
+
+            if owner_last_seen_time is not None:
+                owner_recently_seen = (
+                    now - owner_last_seen_time
+                ) <= args.owner_hold_seconds
+            else:
+                owner_recently_seen = False
+
+            owner_present = owner_seen_now or owner_recently_seen
 
             if owner_present:
                 any_unknown_near_laptop = False
@@ -760,6 +784,7 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
                 if owner_present:
                     state["unknown_near_start_time"] = None
                     state["unknown_near_duration"] = 0.0
+                    state["alarm_reason"] = None
                     unknown_near_duration = 0.0
 
                 elif any_unknown_near_laptop:
@@ -798,8 +823,12 @@ def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: THREADED VIDEO + OWNER PRESENCE OVERRIDE ###")
+    print("### RUNNING VERSION: THREADED VIDEO + ROBUST OWNER PRESENCE ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
+    print(f"[DEBUG] body_threshold={args.body_threshold}")
+    print(f"[DEBUG] fused_threshold={args.fused_threshold}")
+    print(f"[DEBUG] owner_presence_threshold={args.owner_presence_threshold}")
+    print(f"[DEBUG] owner_hold_seconds={args.owner_hold_seconds}")
     print(f"[DEBUG] detection_interval={args.detection_interval}")
     print(f"[DEBUG] face_interval={args.face_interval}")
     print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
@@ -845,6 +874,7 @@ def main():
         "protected_laptop_bbox": None,
 
         "owner_present": False,
+        "owner_last_seen_time": None,
         "unknown_near_start_time": None,
         "unknown_near_duration": 0.0,
 
@@ -904,21 +934,13 @@ def main():
             now = time.time()
             elapsed = now - enrollment_start_time
 
-            # -----------------------------------------------------
-            # Push latest frame to inference thread.
-            # -----------------------------------------------------
-
             with lock:
                 state["latest_frame"] = frame.copy()
                 state["latest_frame_id"] = frame_id
                 phase = state["phase"]
                 last_owner_bbox = state["last_owner_bbox"]
 
-            # -----------------------------------------------------
-            # Enrollment: collect owner crops every frame using
-            # the latest valid bbox.
-            # -----------------------------------------------------
-
+            # Collect owner crops every frame using latest valid bbox.
             if phase == "enrolling":
                 if elapsed > args.enrollment_seconds:
                     with lock:
@@ -934,10 +956,6 @@ def main():
                         with lock:
                             state["owner_body_crops"].append(crop.copy())
 
-            # -----------------------------------------------------
-            # Read current shared state for drawing.
-            # -----------------------------------------------------
-
             with lock:
                 phase = state["phase"]
                 last_faces = list(state["last_faces"])
@@ -952,17 +970,10 @@ def main():
                 if alarm_reason is not None:
                     state["alarm_reason"] = None
 
-            # -----------------------------------------------------
-            # Alarm beep.
-            # -----------------------------------------------------
-
             if alarm_reason is not None:
                 trigger_alarm(alarm_reason)
 
-            # -----------------------------------------------------
-            # Draw faces.
-            # -----------------------------------------------------
-
+            # Draw faces
             cv2.putText(
                 frame,
                 f"FaceRec faces: {len(last_faces)}",
@@ -976,10 +987,7 @@ def main():
             for face in last_faces:
                 draw_face_box(frame, face["bbox"], "FaceRec")
 
-            # -----------------------------------------------------
-            # Draw laptop + guard area.
-            # -----------------------------------------------------
-
+            # Draw laptop + guard area
             if laptop_bbox_for_logic is not None:
                 guard_bbox = expand_bbox(
                     laptop_bbox_for_logic,
@@ -1002,10 +1010,7 @@ def main():
                     (255, 0, 0),
                 )
 
-            # -----------------------------------------------------
-            # Draw person results.
-            # -----------------------------------------------------
-
+            # Draw persons
             for result in last_person_results:
                 draw_label(
                     frame,
@@ -1038,10 +1043,7 @@ def main():
                         2,
                     )
 
-            # -----------------------------------------------------
-            # Status overlay.
-            # -----------------------------------------------------
-
+            # Status overlay
             if phase == "enrolling":
                 status = (
                     f"ENROLLING OWNER: {elapsed:.1f}s / {args.enrollment_seconds:.1f}s | "
@@ -1058,9 +1060,17 @@ def main():
 
             elif phase == "monitoring":
                 if owner_present:
-                    draw_status(frame, "MONITORING - OWNER PRESENT: DISARMED", (0, 255, 0))
+                    draw_status(
+                        frame,
+                        "MONITORING - OWNER PRESENT / RECENTLY SEEN: DISARMED",
+                        (0, 255, 0),
+                    )
                 else:
-                    draw_status(frame, "MONITORING - OWNER ABSENT: ARMED", (255, 255, 255))
+                    draw_status(
+                        frame,
+                        "MONITORING - OWNER ABSENT: ARMED",
+                        (255, 255, 255),
+                    )
 
                 if unknown_near_duration > 0 and not owner_present:
                     cv2.putText(
