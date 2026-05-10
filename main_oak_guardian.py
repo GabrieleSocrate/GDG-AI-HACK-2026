@@ -3,15 +3,15 @@ import argparse
 import time
 import shutil
 import threading
+import math
 import cv2
 import numpy as np
 import torch
 from torchvision import transforms
 from PIL import Image
+from ultralytics import YOLO
 import torchreid
 import depthai as dai
-
-from depthai_nodes.node import ParsingNeuralNetwork, DepthMerger
 
 try:
     from insightface.app import FaceAnalysis
@@ -61,7 +61,6 @@ def parse_args():
     parser.add_argument("--body_threshold", type=float, default=0.60)
     parser.add_argument("--fused_threshold", type=float, default=0.60)
 
-    # Used only to disarm the system when the owner is probably present.
     parser.add_argument("--owner_presence_threshold", type=float, default=0.50)
     parser.add_argument("--owner_hold_seconds", type=float, default=5.0)
 
@@ -70,14 +69,18 @@ def parse_args():
     parser.add_argument("--contact_m", type=float, default=0.10)
     parser.add_argument("--lurker_seconds", type=float, default=5.0)
 
-    # Host-side identity update frequency.
-    parser.add_argument("--identity_interval", type=float, default=0.45)
+    parser.add_argument("--detection_interval", type=float, default=0.45)
     parser.add_argument("--face_interval", type=float, default=1.20)
 
-    # OAK stream.
-    parser.add_argument("--fps", type=int, default=10)
-    parser.add_argument("--width", type=int, default=800)
-    parser.add_argument("--height", type=int, default=600)
+    parser.add_argument("--fps", type=int, default=12)
+    parser.add_argument("--width", type=int, default=416)
+    parser.add_argument("--height", type=int, default=416)
+
+    parser.add_argument("--yolo_imgsz", type=int, default=320)
+
+    # Approximate horizontal FOV used to convert pixel + depth into 3D metric points.
+    # This is an approximation, but good enough for the hackathon demo.
+    parser.add_argument("--approx_hfov_deg", type=float, default=70.0)
 
     parser.add_argument(
         "--device",
@@ -306,176 +309,233 @@ def get_face_for_person(faces, person_bbox):
 
 
 # ---------------------------------------------------------
-# SPATIAL DETECTIONS FROM DEPTHMERGER
+# YOLO DETECTION
 # ---------------------------------------------------------
 
-def safe_getattr(obj, names, default=None):
-    for name in names:
-        if hasattr(obj, name):
-            return getattr(obj, name)
-    return default
+def get_yolo_detections(yolo_model, frame, imgsz=320, conf=0.35):
+    results = yolo_model(frame, conf=conf, imgsz=imgsz, verbose=False)[0]
 
+    persons = []
+    laptops = []
 
-def detection_bbox_to_pixels(det, frame_shape):
-    """
-    Converts detection bbox to pixel coordinates.
-    Handles both normalized bbox values [0,1] and already-pixel values.
-    """
+    if results.boxes is None:
+        return persons, laptops
 
-    h, w = frame_shape[:2]
+    names = yolo_model.names
 
-    x1 = safe_getattr(det, ["xmin", "xMin", "x_min"], None)
-    y1 = safe_getattr(det, ["ymin", "yMin", "y_min"], None)
-    x2 = safe_getattr(det, ["xmax", "xMax", "x_max"], None)
-    y2 = safe_getattr(det, ["ymax", "yMax", "y_max"], None)
-
-    if x1 is None or y1 is None or x2 is None or y2 is None:
-        return None
-
-    x1 = float(x1)
-    y1 = float(y1)
-    x2 = float(x2)
-    y2 = float(y2)
-
-    # Normalized coordinates.
-    if max(abs(x1), abs(y1), abs(x2), abs(y2)) <= 1.5:
-        x1 *= w
-        x2 *= w
-        y1 *= h
-        y2 *= h
-
-    x1 = int(max(0, min(w - 1, x1)))
-    y1 = int(max(0, min(h - 1, y1)))
-    x2 = int(max(0, min(w - 1, x2)))
-    y2 = int(max(0, min(h - 1, y2)))
-
-    if x2 <= x1 or y2 <= y1:
-        return None
-
-    return x1, y1, x2, y2
-
-
-def get_spatial_xyz_m(det):
-    """
-    Reads x,y,z from DepthAI spatial coordinates.
-    Usually they are in millimeters, so convert to meters.
-    """
-
-    spatial = safe_getattr(det, ["spatialCoordinates", "spatial_coordinates"], None)
-
-    if spatial is None:
-        return None
-
-    x = safe_getattr(spatial, ["x"], None)
-    y = safe_getattr(spatial, ["y"], None)
-    z = safe_getattr(spatial, ["z"], None)
-
-    if x is None or y is None or z is None:
-        return None
-
-    x = float(x)
-    y = float(y)
-    z = float(z)
-
-    if not np.isfinite([x, y, z]).all():
-        return None
-
-    if abs(z) < 1e-6:
-        return None
-
-    # DepthAI spatial coords are normally in millimeters.
-    if max(abs(x), abs(y), abs(z)) > 20.0:
-        x /= 1000.0
-        y /= 1000.0
-        z /= 1000.0
-
-    return np.array([x, y, z], dtype=np.float32)
-
-
-def parse_spatial_detections(spatial_msg, classes, frame_shape):
-    """
-    Converts DepthMerger output into simple Python dicts.
-    Each detection contains:
-        label, bbox, confidence, spatial_m, area
-    """
-
-    parsed = []
-
-    if spatial_msg is None:
-        return parsed
-
-    detections = safe_getattr(spatial_msg, ["detections"], [])
-
-    if detections is None:
-        return parsed
-
-    for det in detections:
-        label_id = safe_getattr(det, ["label"], None)
-
-        if label_id is None:
-            continue
-
-        label_id = int(label_id)
-
-        if 0 <= label_id < len(classes):
-            label = classes[label_id]
-        else:
-            label = str(label_id)
+    for box in results.boxes:
+        cls_id = int(box.cls[0].item())
+        label = names[cls_id]
 
         if label not in ["person", "laptop"]:
             continue
 
-        bbox = detection_bbox_to_pixels(det, frame_shape)
+        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+        confidence = float(box.conf[0].item())
 
-        if bbox is None:
+        h, w = frame.shape[:2]
+
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(w - 1, x2)
+        y2 = min(h - 1, y2)
+
+        if x2 <= x1 or y2 <= y1:
             continue
 
-        confidence = safe_getattr(det, ["confidence", "conf"], 0.0)
-        confidence = float(confidence)
-
-        spatial_m = get_spatial_xyz_m(det)
-
-        x1, y1, x2, y2 = bbox
         area = (x2 - x1) * (y2 - y1)
 
-        parsed.append(
-            {
-                "label": label,
-                "bbox": bbox,
-                "confidence": confidence,
-                "spatial_m": spatial_m,
-                "area": area,
-            }
-        )
+        det = {
+            "label": label,
+            "bbox": (x1, y1, x2, y2),
+            "confidence": confidence,
+            "area": area,
+        }
 
-    parsed = sorted(parsed, key=lambda d: d["area"], reverse=True)
+        if label == "person":
+            persons.append(det)
+        elif label == "laptop":
+            laptops.append(det)
 
-    return parsed
+    persons = sorted(persons, key=lambda p: p["area"], reverse=True)
+    laptops = sorted(laptops, key=lambda p: p["area"], reverse=True)
+
+    return persons, laptops
 
 
-def spatial_distance_m(det_a, det_b):
+# ---------------------------------------------------------
+# DEPTH / 3D DISTANCE
+# ---------------------------------------------------------
+
+def scale_bbox_to_depth(bbox, frame_shape, depth_shape):
     """
-    True 3D Euclidean distance between two spatial detections in meters.
-    Uses x,y,z coming from OAK StereoDepth + DepthMerger.
+    Converts an RGB bbox to depth-map coordinates.
+    Usually depth is aligned and same size, but this keeps the code robust.
     """
 
-    p_a = det_a.get("spatial_m")
-    p_b = det_b.get("spatial_m")
+    x1, y1, x2, y2 = bbox
 
-    if p_a is None or p_b is None:
+    frame_h, frame_w = frame_shape[:2]
+    depth_h, depth_w = depth_shape[:2]
+
+    sx = depth_w / float(frame_w)
+    sy = depth_h / float(frame_h)
+
+    dx1 = int(max(0, min(depth_w - 1, x1 * sx)))
+    dy1 = int(max(0, min(depth_h - 1, y1 * sy)))
+    dx2 = int(max(0, min(depth_w - 1, x2 * sx)))
+    dy2 = int(max(0, min(depth_h - 1, y2 * sy)))
+
+    if dx2 <= dx1:
+        dx2 = min(depth_w - 1, dx1 + 1)
+    if dy2 <= dy1:
+        dy2 = min(depth_h - 1, dy1 + 1)
+
+    return dx1, dy1, dx2, dy2
+
+
+def median_depth_m(depth_frame, bbox, frame_shape, shrink_ratio=0.35):
+    """
+    Returns median depth in meters inside a central ROI of the bbox.
+    DepthAI depth is often in millimeters for raw depth frames.
+    If values look like millimeters, convert them to meters.
+    """
+
+    if depth_frame is None:
         return None
 
-    if not np.isfinite(p_a).all() or not np.isfinite(p_b).all():
+    x1, y1, x2, y2 = bbox
+
+    # Shrink bbox to central part to avoid background pixels.
+    w = x2 - x1
+    h = y2 - y1
+
+    if w <= 2 or h <= 2:
+        return None
+
+    mx = int(w * shrink_ratio / 2)
+    my = int(h * shrink_ratio / 2)
+
+    small_bbox = (
+        x1 + mx,
+        y1 + my,
+        x2 - mx,
+        y2 - my,
+    )
+
+    dx1, dy1, dx2, dy2 = scale_bbox_to_depth(
+        small_bbox,
+        frame_shape,
+        depth_frame.shape,
+    )
+
+    roi = depth_frame[dy1:dy2, dx1:dx2]
+
+    if roi.size == 0:
+        return None
+
+    values = roi.astype(np.float32).reshape(-1)
+
+    values = values[np.isfinite(values)]
+    values = values[values > 0]
+
+    if values.size == 0:
+        return None
+
+    med = float(np.median(values))
+
+    # Heuristic:
+    # If median is > 20, it is almost certainly millimeters, not meters.
+    if med > 20.0:
+        med = med / 1000.0
+
+    if med <= 0.05 or med > 20.0:
+        return None
+
+    return med
+
+
+def bbox_center(bbox):
+    x1, y1, x2, y2 = bbox
+    return int((x1 + x2) / 2), int((y1 + y2) / 2)
+
+
+def bbox_3d_point_m(depth_frame, bbox, frame_shape, hfov_deg=70.0):
+    """
+    Approximate 3D point from bbox center + median depth.
+
+    Uses a pinhole approximation:
+        X = (u - cx) * Z / fx
+        Y = (v - cy) * Z / fy
+        Z = depth
+
+    For the demo, this is enough to convert proximity from pixels to meters.
+    """
+
+    z = median_depth_m(depth_frame, bbox, frame_shape)
+
+    if z is None:
+        return None
+
+    frame_h, frame_w = frame_shape[:2]
+    u, v = bbox_center(bbox)
+
+    hfov_rad = math.radians(hfov_deg)
+    fx = frame_w / (2.0 * math.tan(hfov_rad / 2.0))
+    fy = fx
+
+    cx = frame_w / 2.0
+    cy = frame_h / 2.0
+
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
+
+    return np.array([x, y, z], dtype=np.float32)
+
+
+def bbox_distance_m(depth_frame, frame_shape, box_a, box_b, hfov_deg=70.0):
+    """
+    Returns approximate Euclidean 3D distance in meters between two bboxes.
+    """
+
+    p_a = bbox_3d_point_m(depth_frame, box_a, frame_shape, hfov_deg=hfov_deg)
+    p_b = bbox_3d_point_m(depth_frame, box_b, frame_shape, hfov_deg=hfov_deg)
+
+    if p_a is None or p_b is None:
         return None
 
     return float(np.linalg.norm(p_a - p_b))
 
 
 # ---------------------------------------------------------
-# DRAWING
+# 2D GEOMETRY ONLY FOR DRAWING
 # ---------------------------------------------------------
 
-def trigger_alarm(reason):
+def expand_bbox(bbox, margin, frame_shape):
+    x1, y1, x2, y2 = bbox
+    h, w = frame_shape[:2]
+
+    x1 = max(0, int(x1 - margin))
+    y1 = max(0, int(y1 - margin))
+    x2 = min(w - 1, int(x2 + margin))
+    y2 = min(h - 1, int(y2 + margin))
+
+    return x1, y1, x2, y2
+
+
+# ---------------------------------------------------------
+# ALARM
+# ---------------------------------------------------------
+
+def trigger_alarm(reason, state=None, lock=None):
+    if state is not None and lock is not None:
+        with lock:
+            owner_present = bool(state.get("owner_present", False))
+
+        if owner_present:
+            print(f"[ALARM SUPPRESSED] Owner present/recently seen. Reason ignored: {reason}")
+            return
+
     print(f"\n🚨 ALARM: {reason}\n")
 
     if HAS_WINSOUND:
@@ -485,10 +545,9 @@ def trigger_alarm(reason):
         print("\a")
 
 
-def bbox_center(bbox):
-    x1, y1, x2, y2 = bbox
-    return int((x1 + x2) / 2), int((y1 + y2) / 2)
-
+# ---------------------------------------------------------
+# DRAWING
+# ---------------------------------------------------------
 
 def draw_label(frame, bbox, text, color):
     x1, y1, x2, y2 = bbox
@@ -532,9 +591,9 @@ def draw_distance_line_m(frame, person_bbox, laptop_bbox, distance_m, identity):
     mid_y = int((person_center[1] + laptop_center[1]) / 2)
 
     if distance_m is None:
-        text = "dist=?m"
+        text = "3D dist=?m"
     else:
-        text = f"{distance_m:.2f}m"
+        text = f"3D {distance_m:.2f}m"
 
     cv2.putText(
         frame,
@@ -567,8 +626,8 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
 # INFERENCE WORKER
 # ---------------------------------------------------------
 
-def inference_worker(args, state, lock, osnet_model, face_model):
-    last_identity_time = 0.0
+def inference_worker(args, state, lock, yolo_model, osnet_model, face_model):
+    last_detection_time = 0.0
     last_face_time = 0.0
     processing_started = False
 
@@ -577,7 +636,7 @@ def inference_worker(args, state, lock, osnet_model, face_model):
             running = state["running"]
             phase = state["phase"]
             latest_frame = None if state["latest_frame"] is None else state["latest_frame"].copy()
-            latest_spatial_detections = [dict(d) for d in state["latest_spatial_detections"]]
+            latest_depth = None if state["latest_depth"] is None else state["latest_depth"].copy()
             owner_body_crops = list(state["owner_body_crops"])
             owner_face_embeddings = list(state["owner_face_embeddings"])
 
@@ -590,63 +649,61 @@ def inference_worker(args, state, lock, osnet_model, face_model):
 
         now = time.time()
 
-        persons = [d for d in latest_spatial_detections if d["label"] == "person"]
-        laptops = [d for d in latest_spatial_detections if d["label"] == "laptop"]
-
-        persons = sorted(persons, key=lambda d: d["area"], reverse=True)
-        laptops = sorted(laptops, key=lambda d: d["area"], reverse=True)
-
         # -----------------------------------------------------
         # ENROLLING
         # -----------------------------------------------------
 
         if phase == "enrolling":
-            if len(persons) > 0:
-                owner_det = persons[0]
-                owner_bbox = owner_det["bbox"]
+            if now - last_detection_time >= args.detection_interval:
+                last_detection_time = now
 
-                face_msg = "no_face"
+                persons, laptops = get_yolo_detections(
+                    yolo_model,
+                    latest_frame,
+                    imgsz=args.yolo_imgsz,
+                )
+
+                faces = []
 
                 if now - last_face_time >= args.face_interval:
                     last_face_time = now
                     faces = detect_faces_with_embeddings(face_model, latest_frame)
-                else:
-                    with lock:
-                        faces = list(state["last_faces"])
-
-                matched_face = get_face_for_person(faces, owner_bbox)
 
                 with lock:
-                    state["last_faces"] = faces
+                    state["last_persons"] = persons
+                    state["last_faces"] = faces if len(faces) > 0 else state["last_faces"]
 
-                    if matched_face is not None:
-                        state["owner_face_embeddings"].append(matched_face["embedding"])
-                        face_msg = f"face_emb={len(state['owner_face_embeddings'])}"
+                    if len(persons) > 0:
+                        owner_bbox = persons[0]["bbox"]
+                        state["last_owner_bbox"] = owner_bbox
 
-                    state["last_owner_bbox"] = owner_bbox
-                    state["last_person_results"] = [
-                        {
-                            "bbox": owner_bbox,
-                            "label": (
-                                f"ENROLL OWNER | "
-                                f"crops={len(state['owner_body_crops'])} | {face_msg}"
-                            ),
-                            "color": (0, 255, 255),
-                            "identity": "OWNER",
-                            "distance_m": None,
-                        }
-                    ]
+                        face_msg = "no_face"
 
-            if len(laptops) > 0:
-                laptop_det = laptops[0]
+                        if len(faces) > 0:
+                            matched_face = get_face_for_person(faces, owner_bbox)
+                            if matched_face is not None:
+                                state["owner_face_embeddings"].append(matched_face["embedding"])
+                                face_msg = f"face_emb={len(state['owner_face_embeddings'])}"
 
-                with lock:
-                    state["last_laptop_bbox"] = laptop_det["bbox"]
-                    state["last_laptop_spatial_m"] = laptop_det["spatial_m"]
+                        state["last_person_results"] = [
+                            {
+                                "bbox": owner_bbox,
+                                "label": (
+                                    f"ENROLL OWNER | "
+                                    f"crops={len(state['owner_body_crops'])} | {face_msg}"
+                                ),
+                                "color": (0, 255, 255),
+                                "identity": "OWNER",
+                            }
+                        ]
 
-                    if state["protected_laptop_bbox"] is None:
-                        state["protected_laptop_bbox"] = laptop_det["bbox"]
-                        print("[ASSET MAPPING] Laptop mapped with spatial coordinates.")
+                    if len(laptops) > 0:
+                        current_laptop = laptops[0]
+                        state["last_laptop_bbox"] = current_laptop["bbox"]
+
+                        if state["protected_laptop_bbox"] is None:
+                            state["protected_laptop_bbox"] = current_laptop["bbox"]
+                            print("[ASSET MAPPING] Laptop mapped.")
 
             time.sleep(0.01)
             continue
@@ -698,36 +755,27 @@ def inference_worker(args, state, lock, osnet_model, face_model):
         # -----------------------------------------------------
 
         if phase == "monitoring":
-            if now - last_identity_time < args.identity_interval:
+            if now - last_detection_time < args.detection_interval:
                 time.sleep(0.01)
                 continue
 
-            last_identity_time = now
+            last_detection_time = now
 
             with lock:
                 owner_body_gallery = state["owner_body_gallery"]
                 owner_face_gallery = state["owner_face_gallery"]
-                last_faces = list(state["last_faces"])
                 last_laptop_bbox = state["last_laptop_bbox"]
-                last_laptop_spatial_m = state["last_laptop_spatial_m"]
+                last_faces = list(state["last_faces"])
 
             if owner_body_gallery is None:
                 time.sleep(0.05)
                 continue
 
-            if len(laptops) > 0:
-                laptop_det = laptops[0]
-                last_laptop_bbox = laptop_det["bbox"]
-                last_laptop_spatial_m = laptop_det["spatial_m"]
-            elif last_laptop_bbox is not None:
-                laptop_det = {
-                    "bbox": last_laptop_bbox,
-                    "spatial_m": last_laptop_spatial_m,
-                    "label": "laptop",
-                    "area": 0,
-                }
-            else:
-                laptop_det = None
+            persons, laptops = get_yolo_detections(
+                yolo_model,
+                latest_frame,
+                imgsz=args.yolo_imgsz,
+            )
 
             if now - last_face_time >= args.face_interval:
                 last_face_time = now
@@ -735,22 +783,21 @@ def inference_worker(args, state, lock, osnet_model, face_model):
             else:
                 faces = last_faces
 
+            if len(laptops) > 0:
+                last_laptop_bbox = laptops[0]["bbox"]
+
             person_results = []
 
-            for person_det in persons:
-                px1, py1, px2, py2 = person_det["bbox"]
+            for person in persons:
+                px1, py1, px2, py2 = person["bbox"]
                 person_crop = latest_frame[py1:py2, px1:px2]
 
                 if person_crop.size == 0:
                     continue
 
-                body_embedding = get_osnet_embedding(
-                    osnet_model,
-                    person_crop,
-                    args.device,
-                )
+                body_embedding = get_osnet_embedding(osnet_model, person_crop, args.device)
 
-                body_score, _, _ = mean_similarity_score(
+                body_score, body_max, body_min = mean_similarity_score(
                     body_embedding,
                     owner_body_gallery,
                 )
@@ -760,11 +807,11 @@ def inference_worker(args, state, lock, osnet_model, face_model):
                 if owner_face_gallery is not None:
                     matched_face = get_face_for_person(
                         faces=faces,
-                        person_bbox=person_det["bbox"],
+                        person_bbox=person["bbox"],
                     )
 
                     if matched_face is not None:
-                        face_score, _, _ = mean_similarity_score(
+                        face_score, face_max, face_min = mean_similarity_score(
                             matched_face["embedding"],
                             owner_face_gallery,
                         )
@@ -793,8 +840,14 @@ def inference_worker(args, state, lock, osnet_model, face_model):
                 near_laptop = False
                 touching_laptop = False
 
-                if laptop_det is not None:
-                    distance_m = spatial_distance_m(person_det, laptop_det)
+                if last_laptop_bbox is not None and latest_depth is not None:
+                    distance_m = bbox_distance_m(
+                        depth_frame=latest_depth,
+                        frame_shape=latest_frame.shape,
+                        box_a=person["bbox"],
+                        box_b=last_laptop_bbox,
+                        hfov_deg=args.approx_hfov_deg,
+                    )
 
                     if distance_m is not None:
                         near_laptop = distance_m <= args.guard_m
@@ -802,7 +855,7 @@ def inference_worker(args, state, lock, osnet_model, face_model):
 
                 person_results.append(
                     {
-                        "bbox": person_det["bbox"],
+                        "bbox": person["bbox"],
                         "label": label,
                         "color": color,
                         "identity": identity,
@@ -815,7 +868,7 @@ def inference_worker(args, state, lock, osnet_model, face_model):
                 )
 
             # -------------------------------------------------
-            # HARD OWNER DISARM
+            # ROBUST OWNER PRESENCE OVERRIDE
             # -------------------------------------------------
 
             owner_seen_now = any(
@@ -854,15 +907,13 @@ def inference_worker(args, state, lock, osnet_model, face_model):
                 )
 
             with lock:
+                state["last_persons"] = persons
                 state["last_faces"] = faces
                 state["last_person_results"] = person_results
                 state["last_laptop_bbox"] = last_laptop_bbox
-                state["last_laptop_spatial_m"] = last_laptop_spatial_m
                 state["owner_present"] = owner_present
 
                 if owner_present:
-                    # HARD DISARM:
-                    # if owner is visible/recently visible, alarm cannot exist.
                     state["unknown_near_start_time"] = None
                     state["unknown_near_duration"] = 0.0
                     state["alarm_reason"] = None
@@ -880,19 +931,20 @@ def inference_worker(args, state, lock, osnet_model, face_model):
                     state["unknown_near_duration"] = 0.0
                     unknown_near_duration = 0.0
 
+                # Owner presence has priority over every UNKNOWN proximity rule.
                 if not owner_present:
                     if any_unknown_touching_laptop:
                         if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
                             state["alarm_reason"] = (
-                                f"UNKNOWN is within {args.contact_m:.2f}m of the laptop."
+                                f"UNKNOWN person is within {args.contact_m:.2f}m of the laptop."
                             )
                             state["last_alarm_time"] = now
 
                     elif unknown_near_duration >= args.lurker_seconds:
                         if now - state["last_alarm_time"] >= state["alarm_cooldown_seconds"]:
                             state["alarm_reason"] = (
-                                f"UNKNOWN stayed within {args.guard_m:.2f}m "
-                                f"of the laptop for {unknown_near_duration:.1f}s."
+                                f"UNKNOWN person stayed within {args.guard_m:.2f}m "
+                                f"of the laptop for {unknown_near_duration:.1f} seconds."
                             )
                             state["last_alarm_time"] = now
 
@@ -906,7 +958,7 @@ def inference_worker(args, state, lock, osnet_model, face_model):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: OAK STEREODEPTH + DEPTHMERGER + HARD OWNER DISARM ###")
+    print("### RUNNING VERSION: THREADED VIDEO + DEPTH DISTANCE IN METERS + OWNER DISARM OVERRIDE ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
@@ -914,30 +966,27 @@ def main():
     print(f"[DEBUG] owner_hold_seconds={args.owner_hold_seconds}")
     print(f"[DEBUG] guard_m={args.guard_m}")
     print(f"[DEBUG] contact_m={args.contact_m}")
-    print(f"[DEBUG] identity_interval={args.identity_interval}")
+    print(f"[DEBUG] detection_interval={args.detection_interval}")
     print(f"[DEBUG] face_interval={args.face_interval}")
     print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
     print(f"[DEBUG] device={args.device}")
 
     clear_owner_data()
 
+    yolo_model = YOLO("yolov8n.pt")
     osnet_model = load_osnet(args.device)
     face_model = load_face_recognition_model()
 
-    device = dai.Device(dai.DeviceInfo(args.oak_device)) if args.oak_device else dai.Device()
-    platform = device.getPlatform().name
-    print(f"[OAK] Platform: {platform}")
+    if args.oak_device:
+        oak_device = dai.Device(dai.DeviceInfo(args.oak_device))
+    else:
+        oak_device = dai.Device()
 
-    available_cameras = device.getConnectedCameras()
-
-    if len(available_cameras) < 3:
-        raise ValueError(
-            "Device must have 3 cameras: color, left, right. "
-            "StereoDepth requires the left and right cameras."
-        )
+    platform_name = oak_device.getPlatform().name
+    print(f"[OAK] Connected platform: {platform_name}")
 
     frame_type = (
-        dai.ImgFrame.Type.BGR888p if platform == "RVC2" else dai.ImgFrame.Type.BGR888i
+        dai.ImgFrame.Type.BGR888i if platform_name == "RVC4" else dai.ImgFrame.Type.BGR888p
     )
 
     lock = threading.Lock()
@@ -947,8 +996,8 @@ def main():
         "phase": "enrolling",
 
         "latest_frame": None,
+        "latest_depth": None,
         "latest_frame_id": 0,
-        "latest_spatial_detections": [],
 
         "owner_body_crops": [],
         "owner_face_embeddings": [],
@@ -956,11 +1005,11 @@ def main():
         "owner_face_gallery": None,
 
         "last_owner_bbox": None,
+        "last_persons": [],
         "last_faces": [],
         "last_person_results": [],
 
         "last_laptop_bbox": None,
-        "last_laptop_spatial_m": None,
         "protected_laptop_bbox": None,
 
         "owner_present": False,
@@ -977,151 +1026,81 @@ def main():
 
     worker = threading.Thread(
         target=inference_worker,
-        args=(args, state, lock, osnet_model, face_model),
+        args=(args, state, lock, yolo_model, osnet_model, face_model),
         daemon=True,
     )
     worker.start()
 
-    with dai.Pipeline(device) as pipeline:
-        print("[OAK] Creating pipeline with on-device YOLO + StereoDepth + DepthMerger...")
+    print("[OWNER ENROLLMENT WAITING FOR FIRST FRAME]")
+    print(f"Enrollment duration: {args.enrollment_seconds} seconds")
+    print("Only the owner should be visible during enrollment.\n")
 
-        # -----------------------------------------------------
-        # On-device object detection model
-        # -----------------------------------------------------
+    with dai.Pipeline(oak_device) as pipeline:
+        print("[OAK] Creating live RGB + aligned depth pipeline...")
 
-        obj_det_model_description = dai.NNModelDescription.fromYamlFile(
-            f"yolov6_nano_r2_coco.{platform}.yaml"
+        color = pipeline.create(dai.node.Camera).build()
+        left = pipeline.create(dai.node.Camera).build(
+            dai.CameraBoardSocket.CAM_B,
+            sensorFps=args.fps,
+        )
+        right = pipeline.create(dai.node.Camera).build(
+            dai.CameraBoardSocket.CAM_C,
+            sensorFps=args.fps,
         )
 
-        obj_det_nn_archive = dai.NNArchive(
-            dai.getModelFromZoo(obj_det_model_description)
-        )
+        stereo = pipeline.create(dai.node.StereoDepth)
+        stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.DEFAULT)
+        stereo.setRectifyEdgeFillColor(0)
 
-        classes = obj_det_nn_archive.getConfig().model.heads[0].metadata.classes
-        classes = list(classes)
+        try:
+            stereo.enableDistortionCorrection(True)
+        except Exception:
+            pass
 
-        print("[OAK] Object classes loaded.")
-        print(f"[OAK] person class id: {classes.index('person') if 'person' in classes else 'missing'}")
-        print(f"[OAK] laptop class id: {classes.index('laptop') if 'laptop' in classes else 'missing'}")
+        left.requestOutput((args.width, args.height)).link(stereo.left)
+        right.requestOutput((args.width, args.height)).link(stereo.right)
 
-        # -----------------------------------------------------
-        # Cameras
-        # -----------------------------------------------------
-
-        color_camera = pipeline.create(dai.node.Camera).build(
-            dai.CameraBoardSocket.CAM_A
-        )
-
-        left_cam = pipeline.create(dai.node.Camera).build(
-            dai.CameraBoardSocket.CAM_B
-        )
-
-        right_cam = pipeline.create(dai.node.Camera).build(
-            dai.CameraBoardSocket.CAM_C
-        )
-
-        # -----------------------------------------------------
-        # StereoDepth
-        # -----------------------------------------------------
-
-        stereo = pipeline.create(dai.node.StereoDepth).build(
-            left=left_cam.requestOutput(
-                obj_det_nn_archive.getInputSize(),
+        try:
+            color_out = color.requestOutput(
+                size=(args.width, args.height),
+                type=frame_type,
                 fps=args.fps,
-            ),
-            right=right_cam.requestOutput(
-                obj_det_nn_archive.getInputSize(),
+                enableUndistortion=True,
+            )
+        except TypeError:
+            color_out = color.requestOutput(
+                size=(args.width, args.height),
+                type=frame_type,
                 fps=args.fps,
-            ),
-            presetMode=dai.node.StereoDepth.PresetMode.HIGH_DETAIL,
-        )
-
-        stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-
-        if platform == "RVC2":
-            stereo.setOutputSize(*obj_det_nn_archive.getInputSize())
-
-        stereo.setLeftRightCheck(True)
-        stereo.setRectification(True)
-
-        # -----------------------------------------------------
-        # Color output
-        # -----------------------------------------------------
-
-        camera_output = color_camera.requestOutput(
-            (args.width, args.height),
-            frame_type,
-            fps=args.fps,
-        )
-
-        # -----------------------------------------------------
-        # Resize/manip for object detection
-        # -----------------------------------------------------
-
-        det_input_w, det_input_h = obj_det_nn_archive.getInputSize()
-
-        obj_det_manip = pipeline.create(dai.node.ImageManip)
-        obj_det_manip.initialConfig.setOutputSize(
-            det_input_w,
-            det_input_h,
-            mode=dai.ImageManipConfig.ResizeMode.STRETCH,
-        )
-        obj_det_manip.initialConfig.setFrameType(frame_type)
-
-        camera_output.link(obj_det_manip.inputImage)
-
-        obj_det_nn: ParsingNeuralNetwork = pipeline.create(
-            ParsingNeuralNetwork
-        ).build(
-            obj_det_manip.out,
-            obj_det_nn_archive,
-        )
-
-        if platform == "RVC2":
-            obj_det_nn.setNNArchive(
-                obj_det_nn_archive,
-                numShaves=7,
             )
 
-        # -----------------------------------------------------
-        # DepthMerger: this is the key part.
-        # It merges YOLO detections with StereoDepth and calibration.
-        # Output detections include spatial x,y,z coordinates.
-        # -----------------------------------------------------
+        rgb_queue = color_out.createOutputQueue(maxSize=8, blocking=False)
 
-        detection_depth_merger = pipeline.create(DepthMerger).build(
-            output2d=obj_det_nn.out,
-            outputDepth=stereo.depth,
-            calibData=device.readCalibration2(),
-            depthAlignmentSocket=dai.CameraBoardSocket.CAM_A,
-            shrinkingFactor=0.1,
-        )
-
-        # Queues
-        frame_queue = camera_output.createOutputQueue(
-            maxSize=8,
-            blocking=False,
-        )
-
-        spatial_queue = detection_depth_merger.output.createOutputQueue(
-            maxSize=8,
-            blocking=False,
-        )
+        if platform_name == "RVC4":
+            align = pipeline.create(dai.node.ImageAlign)
+            stereo.depth.link(align.input)
+            color_out.link(align.inputAlignTo)
+            depth_queue = align.outputAligned.createOutputQueue(maxSize=8, blocking=False)
+        else:
+            color_out.link(stereo.inputAlignTo)
+            depth_queue = stereo.depth.createOutputQueue(maxSize=8, blocking=False)
 
         print("[OAK] Pipeline created.")
         pipeline.start()
 
         enrollment_start_time = None
         frame_id = 0
-        last_spatial_detections = []
-
-        print("[OWNER ENROLLMENT WAITING FOR FIRST FRAME]")
-        print(f"Enrollment duration: {args.enrollment_seconds} seconds")
-        print("Only the owner should be visible during enrollment.\n")
+        last_depth_frame = None
 
         while pipeline.isRunning():
-            frame_msg = frame_queue.tryGet()
-            spatial_msg = spatial_queue.tryGet()
+            frame_msg = rgb_queue.tryGet()
+            depth_msg = depth_queue.tryGet()
+
+            if depth_msg is not None:
+                try:
+                    last_depth_frame = depth_msg.getCvFrame()
+                except Exception:
+                    last_depth_frame = None
 
             if frame_msg is None:
                 key = cv2.waitKey(1)
@@ -1133,13 +1112,6 @@ def main():
             frame = frame_msg.getCvFrame()
             frame_id += 1
 
-            if spatial_msg is not None:
-                last_spatial_detections = parse_spatial_detections(
-                    spatial_msg=spatial_msg,
-                    classes=classes,
-                    frame_shape=frame.shape,
-                )
-
             if enrollment_start_time is None:
                 enrollment_start_time = time.time()
                 print("[OWNER ENROLLMENT STARTED FROM FIRST FRAME]\n")
@@ -1149,12 +1121,12 @@ def main():
 
             with lock:
                 state["latest_frame"] = frame.copy()
+                state["latest_depth"] = None if last_depth_frame is None else last_depth_frame.copy()
                 state["latest_frame_id"] = frame_id
-                state["latest_spatial_detections"] = [dict(d) for d in last_spatial_detections]
                 phase = state["phase"]
                 last_owner_bbox = state["last_owner_bbox"]
 
-            # Collect owner body crops every frame using latest valid bbox.
+            # Collect owner crops every frame using latest valid bbox.
             if phase == "enrolling":
                 if elapsed > args.enrollment_seconds:
                     with lock:
@@ -1181,12 +1153,35 @@ def main():
                 face_emb_count = len(state["owner_face_embeddings"])
                 owner_present = state["owner_present"]
 
-                if alarm_reason is not None:
+                if owner_present:
+                    state["alarm_reason"] = None
+                    alarm_reason = None
+                elif alarm_reason is not None:
                     state["alarm_reason"] = None
 
-            # Extra safety: never beep if owner is present/recently seen.
-            if alarm_reason is not None and not owner_present:
-                trigger_alarm(alarm_reason)
+            if alarm_reason is not None:
+                trigger_alarm(alarm_reason, state=state, lock=lock)
+
+            # -----------------------------------------------------
+            # Draw depth status
+            # -----------------------------------------------------
+
+            depth_text = (
+                "DEPTH: OK - metric distance"
+                if last_depth_frame is not None
+                else "DEPTH: MISSING - metric distance unavailable"
+            )
+            depth_color = (0, 255, 0) if last_depth_frame is not None else (0, 0, 255)
+
+            cv2.putText(
+                frame,
+                depth_text,
+                (20, 110),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                depth_color,
+                2,
+            )
 
             # -----------------------------------------------------
             # Draw faces
@@ -1218,7 +1213,7 @@ def main():
                 )
 
             # -----------------------------------------------------
-            # Draw persons and metric distances
+            # Draw persons
             # -----------------------------------------------------
 
             for result in last_person_results:
@@ -1241,9 +1236,9 @@ def main():
                     px1, py1, px2, py2 = result["bbox"]
 
                     if result.get("distance_m") is not None:
-                        dist_text = f"dist_to_laptop={result['distance_m']:.2f}m"
+                        dist_text = f"3D_dist_to_laptop={result['distance_m']:.2f}m"
                     else:
-                        dist_text = "dist_to_laptop=?m"
+                        dist_text = "3D_dist_to_laptop=?m (no depth)"
 
                     cv2.putText(
                         frame,
@@ -1309,7 +1304,7 @@ def main():
                             3,
                         )
 
-            cv2.imshow("Desk Guardian - OAK Spatial Demo", frame)
+            cv2.imshow("Desk Guardian - OAK Live Demo", frame)
 
             key = cv2.waitKey(1)
 
