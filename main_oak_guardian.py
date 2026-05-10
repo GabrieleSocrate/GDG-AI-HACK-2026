@@ -10,7 +10,13 @@ from PIL import Image
 from ultralytics import YOLO
 import torchreid
 import depthai as dai
-from insightface.app import FaceAnalysis
+
+try:
+    from insightface.app import FaceAnalysis
+    HAS_FACE_RECOGNITION = True
+except ImportError:
+    FaceAnalysis = None
+    HAS_FACE_RECOGNITION = False
 
 try:
     import winsound
@@ -49,19 +55,18 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--enrollment_seconds", type=float, default=30.0)
+
     parser.add_argument("--body_threshold", type=float, default=0.70)
     parser.add_argument("--fused_threshold", type=float, default=0.65)
 
-    parser.add_argument("--guard_px", type=float, default=250.0)
-    parser.add_argument("--contact_px", type=float, default=30.0)
+    # Defaults adapted to 416x416 video.
+    parser.add_argument("--guard_px", type=float, default=140.0)
+    parser.add_argument("--contact_px", type=float, default=25.0)
     parser.add_argument("--lurker_seconds", type=float, default=5.0)
 
-    parser.add_argument(
-        "--inference_every",
-        type=int,
-        default=3,
-        help="Run YOLO/OSNet/Face Recognition every N frames.",
-    )
+    # Optimized defaults: video shown every frame, models run less often.
+    parser.add_argument("--inference_every", type=int, default=8)
+    parser.add_argument("--face_every", type=int, default=16)
 
     parser.add_argument(
         "--device",
@@ -70,9 +75,11 @@ def parse_args():
     )
 
     parser.add_argument("--oak_device", type=str, default=None)
-    parser.add_argument("--fps", type=int, default=10)
-    parser.add_argument("--width", type=int, default=640)
-    parser.add_argument("--height", type=int, default=480)
+
+    # Lightweight live stream defaults.
+    parser.add_argument("--fps", type=int, default=8)
+    parser.add_argument("--width", type=int, default=416)
+    parser.add_argument("--height", type=int, default=416)
 
     return parser.parse_args()
 
@@ -193,6 +200,10 @@ def get_osnet_embedding(osnet_model, crop_bgr, device):
 # ---------------------------------------------------------
 
 def load_face_recognition_model():
+    if not HAS_FACE_RECOGNITION:
+        print("[FACE RECOGNITION] insightface not installed. Using OSNet only.")
+        return None
+
     app = FaceAnalysis(
         name="buffalo_s",
         allowed_modules=["detection", "recognition"],
@@ -208,10 +219,8 @@ def load_face_recognition_model():
     print(f"[FACE RECOGNITION] Loaded modules: {loaded_modules}")
 
     if "recognition" not in app.models:
-        raise RuntimeError(
-            "Face recognition model was NOT loaded. "
-            "Only face detection may be available."
-        )
+        print("[FACE RECOGNITION] Recognition module not loaded. Using OSNet only.")
+        return None
 
     print("[FACE RECOGNITION] Recognition model loaded correctly.")
 
@@ -219,6 +228,9 @@ def load_face_recognition_model():
 
 
 def detect_faces_with_embeddings(face_model, frame):
+    if face_model is None:
+        return []
+
     faces_raw = face_model.get(frame)
     faces = []
 
@@ -291,7 +303,7 @@ def get_face_for_person(faces, person_bbox):
 # ---------------------------------------------------------
 
 def get_yolo_detections(yolo_model, frame, conf=0.35):
-    results = yolo_model(frame, conf=conf, verbose=False)[0]
+    results = yolo_model(frame, conf=conf, imgsz=320, verbose=False)[0]
 
     persons = []
     laptops = []
@@ -471,11 +483,12 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: OPTIMIZED OSNET + FACE RECOGNITION FUSION ###")
+    print("### RUNNING VERSION: LIGHT OSNET + FACE RECOGNITION FUSION ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
     print(f"[DEBUG] inference_every={args.inference_every}")
+    print(f"[DEBUG] face_every={args.face_every}")
     print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
 
     clear_owner_data()
@@ -555,6 +568,11 @@ def main():
                 or frame_counter % args.inference_every == 0
             )
 
+            run_face = (
+                frame_counter == 1
+                or frame_counter % args.face_every == 0
+            )
+
             if enrollment_start_time is None:
                 enrollment_start_time = time.time()
                 print("[OWNER ENROLLMENT STARTED FROM FIRST FRAME]\n")
@@ -568,8 +586,12 @@ def main():
 
             if run_inference:
                 persons, laptops = get_yolo_detections(yolo_model, frame)
-                faces = detect_faces_with_embeddings(face_model, frame)
-                last_faces = faces
+
+                if run_face:
+                    faces = detect_faces_with_embeddings(face_model, frame)
+                    last_faces = faces
+                else:
+                    faces = last_faces
 
                 current_laptop = laptops[0] if len(laptops) > 0 else None
 
@@ -676,12 +698,6 @@ def main():
                             }
                         ]
 
-                        print(
-                            f"[ENROLLMENT] t={elapsed:.2f}s | "
-                            f"body={len(owner_body_embeddings)} | "
-                            f"face={len(owner_face_embeddings)}"
-                        )
-
                 for result in last_person_results:
                     draw_label(
                         frame,
@@ -709,6 +725,7 @@ def main():
                     print(f"Body threshold: {args.body_threshold}")
                     print(f"Fused threshold: {args.fused_threshold}")
                     print(f"Inference every: {args.inference_every} frames")
+                    print(f"Face recognition every: {args.face_every} frames")
                     print(f"Guard distance in pixels: {args.guard_px}")
                     print(f"Contact distance in pixels: {args.contact_px}")
                     print(f"Lurker seconds: {args.lurker_seconds}\n")
@@ -804,11 +821,6 @@ def main():
                                 "source": source,
                                 "final_score": final_score,
                             }
-                        )
-
-                        print(
-                            f"[RE-ID] {identity} | source={source} | "
-                            f"final={final_score:.3f}"
                         )
 
                 any_unknown_near_laptop = False
