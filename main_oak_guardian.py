@@ -29,10 +29,6 @@ OWNER_FACE_GALLERY_PATH = OWNER_DIR / "owner_face_gallery.npy"
 
 
 def clear_owner_data():
-    """
-    Clears previous owner embeddings before a new enrollment phase.
-    """
-
     if OWNER_DIR.exists() and any(OWNER_DIR.iterdir()):
         print(f"[OWNER DATA] Clearing existing data in {OWNER_DIR}")
 
@@ -52,82 +48,31 @@ def clear_owner_data():
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--enrollment_seconds",
-        type=float,
-        default=30.0,
-        help="First N seconds are used to save owner embeddings.",
-    )
+    parser.add_argument("--enrollment_seconds", type=float, default=30.0)
+    parser.add_argument("--body_threshold", type=float, default=0.70)
+    parser.add_argument("--fused_threshold", type=float, default=0.65)
+
+    parser.add_argument("--guard_px", type=float, default=250.0)
+    parser.add_argument("--contact_px", type=float, default=30.0)
+    parser.add_argument("--lurker_seconds", type=float, default=5.0)
 
     parser.add_argument(
-        "--body_threshold",
-        type=float,
-        default=0.70,
-        help="Threshold when only OSNet body Re-ID is available.",
-    )
-
-    parser.add_argument(
-        "--fused_threshold",
-        type=float,
-        default=0.65,
-        help="Threshold when OSNet and Face Recognition scores are averaged.",
-    )
-
-    parser.add_argument(
-        "--guard_px",
-        type=float,
-        default=250.0,
-        help="Pixel distance around the laptop used as guarded area.",
-    )
-
-    parser.add_argument(
-        "--contact_px",
-        type=float,
-        default=30.0,
-        help="Pixel distance considered as touching the laptop.",
-    )
-
-    parser.add_argument(
-        "--lurker_seconds",
-        type=float,
-        default=5.0,
-        help="Seconds an UNKNOWN person can stay near the laptop before alarm.",
+        "--inference_every",
+        type=int,
+        default=3,
+        help="Run YOLO/OSNet/Face Recognition every N frames.",
     )
 
     parser.add_argument(
         "--device",
         type=str,
         default="cuda" if torch.cuda.is_available() else "cpu",
-        help="Torch device for OSNet: cuda or cpu.",
     )
 
-    parser.add_argument(
-        "--oak_device",
-        type=str,
-        default=None,
-        help="Optional OAK device id/ip. Leave empty to use the first available OAK.",
-    )
-
-    parser.add_argument(
-        "--fps",
-        type=int,
-        default=10,
-        help="OAK camera FPS.",
-    )
-
-    parser.add_argument(
-        "--width",
-        type=int,
-        default=768,
-        help="OAK camera output width.",
-    )
-
-    parser.add_argument(
-        "--height",
-        type=int,
-        default=768,
-        help="OAK camera output height.",
-    )
+    parser.add_argument("--oak_device", type=str, default=None)
+    parser.add_argument("--fps", type=int, default=10)
+    parser.add_argument("--width", type=int, default=640)
+    parser.add_argument("--height", type=int, default=480)
 
     return parser.parse_args()
 
@@ -171,15 +116,10 @@ def save_owner_galleries(body_embeddings, face_embeddings):
         print("[WARNING] No face-recognition embeddings collected. System will use OSNet only.")
 
     print()
-
     return body_gallery, face_gallery
 
 
 def mean_similarity_score(embedding, gallery):
-    """
-    Computes mean cosine similarity between one embedding and a gallery.
-    """
-
     embedding = l2_normalize(embedding)
     scores = gallery @ embedding
 
@@ -191,14 +131,6 @@ def mean_similarity_score(embedding, gallery):
 
 
 def fuse_scores(body_score, face_score, body_threshold, fused_threshold):
-    """
-    If face recognition is available:
-        final_score = mean(OSNet body score, Face Recognition score)
-
-    If face recognition is NOT available:
-        final_score = OSNet body score only
-    """
-
     if face_score is not None:
         final_score = (body_score + face_score) / 2.0
         threshold = fused_threshold
@@ -245,21 +177,15 @@ def preprocess_person_crop(crop_bgr):
         ]
     )
 
-    tensor = transform(pil_img).unsqueeze(0)
-
-    return tensor
+    return transform(pil_img).unsqueeze(0)
 
 
 @torch.no_grad()
 def get_osnet_embedding(osnet_model, crop_bgr, device):
     input_tensor = preprocess_person_crop(crop_bgr).to(device)
-
     embedding = osnet_model(input_tensor)
-
     embedding = embedding.detach().cpu().numpy().reshape(-1)
-    embedding = l2_normalize(embedding)
-
-    return embedding
+    return l2_normalize(embedding)
 
 
 # ---------------------------------------------------------
@@ -267,26 +193,19 @@ def get_osnet_embedding(osnet_model, crop_bgr, device):
 # ---------------------------------------------------------
 
 def load_face_recognition_model():
-    """
-    Loads InsightFace with detection + recognition modules.
-
-    FaceAnalysis is a wrapper.
-    The recognition module produces face identity embeddings.
-    """
-
     app = FaceAnalysis(
-        name="buffalo_l",
+        name="buffalo_s",
         allowed_modules=["detection", "recognition"],
         providers=["CPUExecutionProvider"],
     )
 
     app.prepare(
         ctx_id=-1,
-        det_size=(640, 640),
+        det_size=(320, 320),
     )
 
     loaded_modules = list(app.models.keys())
-    print(f"[FACE RECOGNITION] Loaded InsightFace modules: {loaded_modules}")
+    print(f"[FACE RECOGNITION] Loaded modules: {loaded_modules}")
 
     if "recognition" not in app.models:
         raise RuntimeError(
@@ -295,17 +214,11 @@ def load_face_recognition_model():
         )
 
     print("[FACE RECOGNITION] Recognition model loaded correctly.")
-    print(f"[FACE RECOGNITION] Recognition model object: {app.models['recognition']}")
 
     return app
 
 
 def detect_faces_with_embeddings(face_model, frame):
-    """
-    Detects faces and returns normalized face-recognition embeddings.
-    If no recognition embedding is available, the face is skipped.
-    """
-
     faces_raw = face_model.get(frame)
     faces = []
 
@@ -326,20 +239,16 @@ def detect_faces_with_embeddings(face_model, frame):
 
         if hasattr(face, "normed_embedding") and face.normed_embedding is not None:
             embedding = np.asarray(face.normed_embedding, dtype=np.float32)
-
         elif hasattr(face, "embedding") and face.embedding is not None:
             embedding = l2_normalize(face.embedding)
 
         if embedding is None:
-            print("[FACE WARNING] Face detected but no recognition embedding found.")
             continue
-
-        embedding = l2_normalize(embedding)
 
         faces.append(
             {
                 "bbox": (x1, y1, x2, y2),
-                "embedding": embedding,
+                "embedding": l2_normalize(embedding),
             }
         )
 
@@ -347,11 +256,6 @@ def detect_faces_with_embeddings(face_model, frame):
 
 
 def face_belongs_to_person(face_bbox, person_bbox, tolerance=80):
-    """
-    Associates a face to a person if the face center is inside,
-    or close to, the person bbox.
-    """
-
     fx1, fy1, fx2, fy2 = face_bbox
     px1, py1, px2, py2 = person_bbox
 
@@ -367,10 +271,6 @@ def face_belongs_to_person(face_bbox, person_bbox, tolerance=80):
 
 
 def get_face_for_person(faces, person_bbox):
-    """
-    If multiple faces are inside one person bbox, returns the largest one.
-    """
-
     matched_faces = []
 
     for face in faces:
@@ -391,13 +291,6 @@ def get_face_for_person(faces, person_bbox):
 # ---------------------------------------------------------
 
 def get_yolo_detections(yolo_model, frame, conf=0.35):
-    """
-    Detects persons and laptops.
-    COCO labels:
-    - person
-    - laptop
-    """
-
     results = yolo_model(frame, conf=conf, verbose=False)[0]
 
     persons = []
@@ -439,7 +332,6 @@ def get_yolo_detections(yolo_model, frame, conf=0.35):
 
         if label == "person":
             persons.append(det)
-
         elif label == "laptop":
             laptops.append(det)
 
@@ -454,11 +346,6 @@ def get_yolo_detections(yolo_model, frame, conf=0.35):
 # ---------------------------------------------------------
 
 def bbox_distance_px(box_a, box_b):
-    """
-    Returns 0 if the boxes touch/overlap.
-    Otherwise returns minimum Euclidean distance between boxes in pixels.
-    """
-
     ax1, ay1, ax2, ay2 = box_a
     bx1, by1, bx2, by2 = box_b
 
@@ -584,30 +471,18 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: OSNET + FACE RECOGNITION FUSION ###")
+    print("### RUNNING VERSION: OPTIMIZED OSNET + FACE RECOGNITION FUSION ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
-    print(f"[DEBUG] guard_px={args.guard_px}")
-    print(f"[DEBUG] contact_px={args.contact_px}")
+    print(f"[DEBUG] inference_every={args.inference_every}")
+    print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
 
     clear_owner_data()
-
-    print(f"[DEVICE] Running OSNet on laptop: {args.device}")
-    print("[INFO] Input is LIVE RGB stream from OAK camera.")
-    print("[INFO] YOLO detects persons and laptops.")
-    print("[INFO] OSNet performs body Re-ID.")
-    print("[INFO] Face Recognition performs identity recognition from face embeddings.")
-    print("[INFO] If face is available: final_score = mean(OSNet_score, FaceRecognition_score).")
-    print("[INFO] If face is not available: final_score = OSNet_score only.\n")
 
     yolo_model = YOLO("yolov8n.pt")
     osnet_model = load_osnet(args.device)
     face_model = load_face_recognition_model()
-
-    # ---------------------------------------------------------
-    # OAK LIVE CAMERA SETUP
-    # ---------------------------------------------------------
 
     if args.oak_device:
         oak_device = dai.Device(dai.DeviceInfo(args.oak_device))
@@ -637,10 +512,12 @@ def main():
     last_alarm_time = -999.0
     alarm_cooldown_seconds = 3.0
 
+    last_faces = []
+    last_person_results = []
+
     print("[OWNER ENROLLMENT WAITING FOR FIRST FRAME]")
     print(f"Enrollment duration: {args.enrollment_seconds} seconds")
-    print("Only the owner should be visible during this phase.")
-    print("Move for OSNet, and look at the camera sometimes for Face Recognition.\n")
+    print("Only the owner should be visible during this phase.\n")
 
     with dai.Pipeline(oak_device) as pipeline:
         print("[OAK] Creating live camera pipeline...")
@@ -658,6 +535,7 @@ def main():
         pipeline.start()
 
         enrollment_start_time = None
+        frame_counter = 0
 
         while pipeline.isRunning():
             frame_msg = rgb_queue.tryGet()
@@ -670,6 +548,12 @@ def main():
                 continue
 
             frame = frame_msg.getCvFrame()
+            frame_counter += 1
+
+            run_inference = (
+                frame_counter == 1
+                or frame_counter % args.inference_every == 0
+            )
 
             if enrollment_start_time is None:
                 enrollment_start_time = time.time()
@@ -678,8 +562,32 @@ def main():
             now = time.time()
             elapsed = now - enrollment_start_time
 
-            persons, laptops = get_yolo_detections(yolo_model, frame)
-            faces = detect_faces_with_embeddings(face_model, frame)
+            # -----------------------------------------------------
+            # HEAVY INFERENCE ONLY EVERY N FRAMES
+            # -----------------------------------------------------
+
+            if run_inference:
+                persons, laptops = get_yolo_detections(yolo_model, frame)
+                faces = detect_faces_with_embeddings(face_model, frame)
+                last_faces = faces
+
+                current_laptop = laptops[0] if len(laptops) > 0 else None
+
+                if current_laptop is not None:
+                    last_laptop_bbox = current_laptop["bbox"]
+
+                    if protected_laptop_bbox is None:
+                        protected_laptop_bbox = current_laptop["bbox"]
+                        print(f"[ASSET MAPPING] Laptop mapped at t={elapsed:.2f}s")
+            else:
+                persons = []
+                faces = last_faces
+
+            laptop_bbox_for_logic = last_laptop_bbox
+
+            # -----------------------------------------------------
+            # DRAW FACE BOXES
+            # -----------------------------------------------------
 
             cv2.putText(
                 frame,
@@ -694,16 +602,9 @@ def main():
             for face in faces:
                 draw_face_box(frame, face["bbox"], "FaceRec")
 
-            current_laptop = laptops[0] if len(laptops) > 0 else None
-
-            if current_laptop is not None:
-                last_laptop_bbox = current_laptop["bbox"]
-
-                if protected_laptop_bbox is None:
-                    protected_laptop_bbox = current_laptop["bbox"]
-                    print(f"[ASSET MAPPING] Laptop mapped at t={elapsed:.2f}s")
-
-            laptop_bbox_for_logic = last_laptop_bbox
+            # -----------------------------------------------------
+            # DRAW LAPTOP + GUARD AREA
+            # -----------------------------------------------------
 
             if laptop_bbox_for_logic is not None:
                 guard_bbox = expand_bbox(
@@ -737,7 +638,7 @@ def main():
                     f"{args.enrollment_seconds:.1f}s"
                 )
 
-                if len(persons) > 0:
+                if run_inference and len(persons) > 0:
                     owner_person = persons[0]
                     px1, py1, px2, py2 = owner_person["bbox"]
 
@@ -763,21 +664,31 @@ def main():
                         else:
                             face_msg = "no_face"
 
-                        draw_label(
-                            frame,
-                            owner_person["bbox"],
-                            (
-                                f"ENROLL OWNER | "
-                                f"body={len(owner_body_embeddings)} | {face_msg}"
-                            ),
-                            (0, 255, 255),
-                        )
+                        last_person_results = [
+                            {
+                                "bbox": owner_person["bbox"],
+                                "label": (
+                                    f"ENROLL OWNER | "
+                                    f"body={len(owner_body_embeddings)} | {face_msg}"
+                                ),
+                                "color": (0, 255, 255),
+                                "identity": "OWNER",
+                            }
+                        ]
 
                         print(
                             f"[ENROLLMENT] t={elapsed:.2f}s | "
                             f"body={len(owner_body_embeddings)} | "
                             f"face={len(owner_face_embeddings)}"
                         )
+
+                for result in last_person_results:
+                    draw_label(
+                        frame,
+                        result["bbox"],
+                        result["label"],
+                        result["color"],
+                    )
 
                 draw_status(frame, status_text, (0, 255, 255))
 
@@ -792,141 +703,178 @@ def main():
                         owner_face_embeddings,
                     )
                     enrollment_done = True
+                    last_person_results = []
 
                     print("[MONITORING STARTED]")
                     print(f"Body threshold: {args.body_threshold}")
                     print(f"Fused threshold: {args.fused_threshold}")
+                    print(f"Inference every: {args.inference_every} frames")
                     print(f"Guard distance in pixels: {args.guard_px}")
                     print(f"Contact distance in pixels: {args.contact_px}")
                     print(f"Lurker seconds: {args.lurker_seconds}\n")
 
-                any_unknown_near_laptop = False
+                if run_inference:
+                    last_person_results = []
 
-                for person in persons:
-                    px1, py1, px2, py2 = person["bbox"]
-                    person_crop = frame[py1:py2, px1:px2]
+                    for person in persons:
+                        px1, py1, px2, py2 = person["bbox"]
+                        person_crop = frame[py1:py2, px1:px2]
 
-                    if person_crop.size == 0:
-                        continue
+                        if person_crop.size == 0:
+                            continue
 
-                    body_embedding = get_osnet_embedding(
-                        osnet_model,
-                        person_crop,
-                        args.device,
-                    )
-
-                    body_score, body_max, body_min = mean_similarity_score(
-                        body_embedding,
-                        owner_body_gallery,
-                    )
-
-                    face_score = None
-
-                    if owner_face_gallery is not None:
-                        matched_face = get_face_for_person(
-                            faces=faces,
-                            person_bbox=person["bbox"],
+                        body_embedding = get_osnet_embedding(
+                            osnet_model,
+                            person_crop,
+                            args.device,
                         )
 
-                        if matched_face is not None:
-                            face_score, face_max, face_min = mean_similarity_score(
-                                matched_face["embedding"],
-                                owner_face_gallery,
+                        body_score, body_max, body_min = mean_similarity_score(
+                            body_embedding,
+                            owner_body_gallery,
+                        )
+
+                        face_score = None
+
+                        if owner_face_gallery is not None:
+                            matched_face = get_face_for_person(
+                                faces=faces,
+                                person_bbox=person["bbox"],
                             )
 
-                    identity, final_score, source = fuse_scores(
-                        body_score=body_score,
-                        face_score=face_score,
-                        body_threshold=args.body_threshold,
-                        fused_threshold=args.fused_threshold,
-                    )
+                            if matched_face is not None:
+                                face_score, face_max, face_min = mean_similarity_score(
+                                    matched_face["embedding"],
+                                    owner_face_gallery,
+                                )
 
-                    color = (0, 255, 0) if identity == "OWNER" else (0, 0, 255)
-
-                    if face_score is not None:
-                        label = (
-                            f"{identity} | final={final_score:.3f} | "
-                            f"body={body_score:.3f} face={face_score:.3f}"
-                        )
-                    else:
-                        label = (
-                            f"{identity} | final={final_score:.3f} | "
-                            f"body={body_score:.3f}"
+                        identity, final_score, source = fuse_scores(
+                            body_score=body_score,
+                            face_score=face_score,
+                            body_threshold=args.body_threshold,
+                            fused_threshold=args.fused_threshold,
                         )
 
-                    draw_label(frame, person["bbox"], label, color)
+                        color = (0, 255, 0) if identity == "OWNER" else (0, 0, 255)
 
-                    print(
-                        f"[RE-ID] {identity} | source={source} | "
-                        f"final={final_score:.3f} | "
-                        f"body={body_score:.3f} | "
-                        f"face={face_score if face_score is not None else 'NA'}"
-                    )
+                        if face_score is not None:
+                            label = (
+                                f"{identity} | final={final_score:.3f} | "
+                                f"body={body_score:.3f} face={face_score:.3f}"
+                            )
+                        else:
+                            label = (
+                                f"{identity} | final={final_score:.3f} | "
+                                f"body={body_score:.3f}"
+                            )
 
-                    if laptop_bbox_for_logic is None:
-                        continue
+                        distance_px = None
+                        near_laptop = False
+                        touching_laptop = False
 
-                    distance_px = bbox_distance_px(
-                        person["bbox"],
-                        laptop_bbox_for_logic,
-                    )
+                        if laptop_bbox_for_logic is not None:
+                            distance_px = bbox_distance_px(
+                                person["bbox"],
+                                laptop_bbox_for_logic,
+                            )
 
-                    draw_distance_line(
-                        frame=frame,
-                        person_bbox=person["bbox"],
-                        laptop_bbox=laptop_bbox_for_logic,
-                        distance_px=distance_px,
-                        identity=identity,
-                    )
+                            person_center = bbox_center(person["bbox"])
+                            guard_bbox = expand_bbox(
+                                laptop_bbox_for_logic,
+                                args.guard_px,
+                                frame.shape,
+                            )
 
-                    person_center = bbox_center(person["bbox"])
-                    guard_bbox = expand_bbox(
-                        laptop_bbox_for_logic,
-                        args.guard_px,
-                        frame.shape,
-                    )
+                            near_laptop = (
+                                distance_px <= args.guard_px
+                                or point_inside_bbox(person_center, guard_bbox)
+                            )
 
-                    near_laptop = (
-                        distance_px <= args.guard_px
-                        or point_inside_bbox(person_center, guard_bbox)
-                    )
+                            touching_laptop = distance_px <= args.contact_px
 
-                    touching_laptop = distance_px <= args.contact_px
+                        last_person_results.append(
+                            {
+                                "bbox": person["bbox"],
+                                "label": label,
+                                "color": color,
+                                "identity": identity,
+                                "distance_px": distance_px,
+                                "near_laptop": near_laptop,
+                                "touching_laptop": touching_laptop,
+                                "source": source,
+                                "final_score": final_score,
+                            }
+                        )
 
-                    cv2.putText(
+                        print(
+                            f"[RE-ID] {identity} | source={source} | "
+                            f"final={final_score:.3f}"
+                        )
+
+                any_unknown_near_laptop = False
+                any_unknown_touching_laptop = False
+
+                for result in last_person_results:
+                    draw_label(
                         frame,
-                        f"dist_to_laptop={distance_px:.1f}px",
-                        (px1, min(frame.shape[0] - 20, py2 + 25)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        color,
-                        2,
+                        result["bbox"],
+                        result["label"],
+                        result["color"],
                     )
 
-                    if identity == "OWNER":
-                        continue
+                    if (
+                        laptop_bbox_for_logic is not None
+                        and result.get("distance_px") is not None
+                    ):
+                        draw_distance_line(
+                            frame=frame,
+                            person_bbox=result["bbox"],
+                            laptop_bbox=laptop_bbox_for_logic,
+                            distance_px=result["distance_px"],
+                            identity=result["identity"],
+                        )
 
-                    if near_laptop:
-                        any_unknown_near_laptop = True
-
-                    if touching_laptop:
-                        if now - last_alarm_time >= alarm_cooldown_seconds:
-                            trigger_alarm("UNKNOWN person is touching the laptop.")
-                            last_alarm_time = now
+                        px1, py1, px2, py2 = result["bbox"]
 
                         cv2.putText(
                             frame,
-                            "ALARM: UNKNOWN TOUCHING LAPTOP",
-                            (20, 120),
+                            f"dist_to_laptop={result['distance_px']:.1f}px",
+                            (px1, min(frame.shape[0] - 20, py2 + 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.9,
-                            (0, 0, 255),
-                            3,
+                            0.6,
+                            result["color"],
+                            2,
                         )
 
-                # -----------------------------------------------------
+                    if result["identity"] == "UNKNOWN":
+                        if result.get("near_laptop", False):
+                            any_unknown_near_laptop = True
+
+                        if result.get("touching_laptop", False):
+                            any_unknown_touching_laptop = True
+
+                # -------------------------------------------------
+                # TOUCHING ALARM
+                # -------------------------------------------------
+
+                if any_unknown_touching_laptop:
+                    if now - last_alarm_time >= alarm_cooldown_seconds:
+                        trigger_alarm("UNKNOWN person is touching the laptop.")
+                        last_alarm_time = now
+
+                    cv2.putText(
+                        frame,
+                        "ALARM: UNKNOWN TOUCHING LAPTOP",
+                        (20, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.9,
+                        (0, 0, 255),
+                        3,
+                    )
+
+                # -------------------------------------------------
                 # LURKER ALARM
-                # -----------------------------------------------------
+                # -------------------------------------------------
 
                 if any_unknown_near_laptop:
                     if unknown_near_start_time is None:
