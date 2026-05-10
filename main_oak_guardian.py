@@ -11,11 +11,6 @@ from ultralytics import YOLO
 import torchreid
 import depthai as dai
 from insightface.app import FaceAnalysis
-from guardian_dashboard import (
-    start_dashboard,
-    update_dashboard_frame,
-    update_dashboard_status,
-)
 
 try:
     import winsound
@@ -31,6 +26,8 @@ except ImportError:
 OWNER_DIR = Path("data/owner")
 OWNER_BODY_GALLERY_PATH = OWNER_DIR / "owner_body_gallery.npy"
 OWNER_FACE_GALLERY_PATH = OWNER_DIR / "owner_face_gallery.npy"
+
+RECORDINGS_DIR = Path("recordings")
 
 
 def clear_owner_data():
@@ -81,6 +78,16 @@ def parse_args():
     parser.add_argument("--fps", type=int, default=10)
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
+
+    parser.add_argument(
+        "--output_video",
+        type=str,
+        default=None,
+        help=(
+            "Optional output video path. If not provided, "
+            "a timestamped MP4 is saved in recordings/."
+        ),
+    )
 
     return parser.parse_args()
 
@@ -476,6 +483,30 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
     )
 
 
+def create_video_writer(output_path, fps, frame_shape):
+    """
+    Creates a local MP4 recorder for the annotated output frame.
+    The saved video contains exactly what is shown in the OpenCV window.
+    """
+
+    h, w = frame_shape[:2]
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+    writer = cv2.VideoWriter(
+        str(output_path),
+        fourcc,
+        float(fps),
+        (w, h),
+    )
+
+    if not writer.isOpened():
+        raise RuntimeError(f"Could not open video writer for: {output_path}")
+
+    print(f"[VIDEO RECORDER] Saving annotated video to: {output_path}")
+
+    return writer
+
+
 # ---------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------
@@ -483,11 +514,18 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
 def main():
     args = parse_args()
 
-    # Start the web dashboard in a background thread.
-    # Open http://localhost:8000 in your browser.
-    start_dashboard(host="0.0.0.0", port=8000)
+    RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("### RUNNING VERSION: OAK LIVE + WEB DASHBOARD ###")
+    if args.output_video is None:
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        output_video_path = RECORDINGS_DIR / f"desk_guardian_demo_{timestamp}.mp4"
+    else:
+        output_video_path = Path(args.output_video)
+        output_video_path.parent.mkdir(parents=True, exist_ok=True)
+
+    video_writer = None
+
+    print("### RUNNING VERSION: OPTIMIZED OSNET + FACE RECOGNITION FUSION + LOCAL RECORDING ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
@@ -497,6 +535,7 @@ def main():
     print(f"[DEBUG] contact_px={args.contact_px}")
     print(f"[DEBUG] inference_every={args.inference_every}")
     print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
+    print(f"[DEBUG] output_video={output_video_path}")
 
     clear_owner_data()
 
@@ -976,66 +1015,17 @@ def main():
                     )
 
             # -----------------------------------------------------
-            # WEB DASHBOARD UPDATE
+            # SAVE LOCAL VIDEO FOR DEMO / YOUTUBE
             # -----------------------------------------------------
-            # The dashboard does not read the OAK camera directly.
-            # The main loop sends the already-annotated OpenCV frame
-            # and the current security status to guardian_dashboard.py.
 
-            dashboard_phase = (
-                "ENROLLING"
-                if elapsed <= args.enrollment_seconds
-                else "MONITORING"
-            )
+            if video_writer is None:
+                video_writer = create_video_writer(
+                    output_path=output_video_path,
+                    fps=args.fps,
+                    frame_shape=frame.shape,
+                )
 
-            dashboard_owner_present = (
-                bool(owner_present)
-                if elapsed > args.enrollment_seconds
-                else False
-            )
-
-            dashboard_alarm_active = False
-            dashboard_alarm_reason = ""
-
-            if elapsed > args.enrollment_seconds and not dashboard_owner_present:
-                if (
-                    "any_unknown_touching_laptop" in locals()
-                    and any_unknown_touching_laptop
-                ):
-                    dashboard_alarm_active = True
-                    dashboard_alarm_reason = "UNKNOWN touching laptop"
-
-                elif (
-                    "any_unknown_near_laptop" in locals()
-                    and any_unknown_near_laptop
-                    and "unknown_near_duration" in locals()
-                    and unknown_near_duration >= args.lurker_seconds
-                ):
-                    dashboard_alarm_active = True
-                    dashboard_alarm_reason = (
-                        f"UNKNOWN near laptop for {unknown_near_duration:.1f}s"
-                    )
-
-            dashboard_distance_text = "--"
-
-            for result in last_person_results:
-                if (
-                    result.get("identity") == "UNKNOWN"
-                    and result.get("distance_px") is not None
-                ):
-                    dashboard_distance_text = f"{result['distance_px']:.1f}px"
-                    break
-
-            update_dashboard_frame(frame)
-
-            update_dashboard_status(
-                phase=dashboard_phase,
-                owner_present=dashboard_owner_present,
-                protected_object="LAPTOP",
-                alarm_active=dashboard_alarm_active,
-                alarm_reason=dashboard_alarm_reason,
-                distance_text=dashboard_distance_text,
-            )
+            video_writer.write(frame)
 
             cv2.imshow("Desk Guardian - OAK Live Demo", frame)
 
@@ -1044,6 +1034,10 @@ def main():
             if key == ord("q"):
                 print("[INFO] Exiting.")
                 break
+
+    if video_writer is not None:
+        video_writer.release()
+        print(f"[VIDEO RECORDER] Video saved to: {output_video_path}")
 
     cv2.destroyAllWindows()
 
