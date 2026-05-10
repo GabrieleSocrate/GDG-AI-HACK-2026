@@ -11,6 +11,11 @@ from ultralytics import YOLO
 import torchreid
 import depthai as dai
 from insightface.app import FaceAnalysis
+from guardian_dashboard import (
+    start_dashboard,
+    update_dashboard_frame,
+    update_dashboard_status,
+)
 
 try:
     import winsound
@@ -26,23 +31,6 @@ except ImportError:
 OWNER_DIR = Path("data/owner")
 OWNER_BODY_GALLERY_PATH = OWNER_DIR / "owner_body_gallery.npy"
 OWNER_FACE_GALLERY_PATH = OWNER_DIR / "owner_face_gallery.npy"
-
-
-# ---------------------------------------------------------
-# PROTECTED OBJECTS
-# ---------------------------------------------------------
-
-PROTECTED_OBJECT_LABELS = [
-    "laptop",
-    "cell phone",
-    "handbag",   # proxy per portafogli / borsa; "wallet" non è in COCO standard
-]
-
-PROTECTED_OBJECT_DISPLAY_NAMES = {
-    "laptop": "LAPTOP",
-    "cell phone": "PHONE",
-    "handbag": "WALLET/BAG",
-}
 
 
 def clear_owner_data():
@@ -68,6 +56,9 @@ def parse_args():
     parser.add_argument("--enrollment_seconds", type=float, default=30.0)
     parser.add_argument("--body_threshold", type=float, default=0.70)
     parser.add_argument("--fused_threshold", type=float, default=0.65)
+
+    parser.add_argument("--owner_presence_threshold", type=float, default=0.55)
+    parser.add_argument("--owner_hold_seconds", type=float, default=5.0)
 
     parser.add_argument("--guard_px", type=float, default=250.0)
     parser.add_argument("--contact_px", type=float, default=30.0)
@@ -308,32 +299,21 @@ def get_face_for_person(faces, person_bbox):
 # ---------------------------------------------------------
 
 def get_yolo_detections(yolo_model, frame, conf=0.35):
-    """
-    Detects persons and protected objects.
-
-    Protected objects are defined in PROTECTED_OBJECT_LABELS.
-    With YOLO COCO:
-    - laptop works
-    - cell phone works
-    - handbag can be used as a proxy for wallet/bag
-    """
-
     results = yolo_model(frame, conf=conf, verbose=False)[0]
 
     persons = []
-    protected_objects = []
+    laptops = []
 
     if results.boxes is None:
-        return persons, protected_objects
+        return persons, laptops
 
     names = yolo_model.names
-    allowed_labels = ["person"] + PROTECTED_OBJECT_LABELS
 
     for box in results.boxes:
         cls_id = int(box.cls[0].item())
         label = names[cls_id]
 
-        if label not in allowed_labels:
+        if label not in ["person", "laptop"]:
             continue
 
         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
@@ -353,10 +333,6 @@ def get_yolo_detections(yolo_model, frame, conf=0.35):
 
         det = {
             "label": label,
-            "display_name": PROTECTED_OBJECT_DISPLAY_NAMES.get(
-                label,
-                label.upper(),
-            ),
             "bbox": (x1, y1, x2, y2),
             "confidence": confidence,
             "area": area,
@@ -364,13 +340,13 @@ def get_yolo_detections(yolo_model, frame, conf=0.35):
 
         if label == "person":
             persons.append(det)
-        else:
-            protected_objects.append(det)
+        elif label == "laptop":
+            laptops.append(det)
 
     persons = sorted(persons, key=lambda p: p["area"], reverse=True)
-    protected_objects = sorted(protected_objects, key=lambda p: p["area"], reverse=True)
+    laptops = sorted(laptops, key=lambda p: p["area"], reverse=True)
 
-    return persons, protected_objects
+    return persons, laptops
 
 
 # ---------------------------------------------------------
@@ -414,7 +390,11 @@ def point_inside_bbox(point, bbox):
 # ALARM
 # ---------------------------------------------------------
 
-def trigger_alarm(reason):
+def trigger_alarm(reason, owner_present=False):
+    if owner_present:
+        print(f"[ALARM SUPPRESSED] Owner present/recently seen. Reason ignored: {reason}")
+        return
+
     print(f"\n🚨 ALARM: {reason}\n")
 
     if HAS_WINSOUND:
@@ -456,18 +436,18 @@ def draw_status(frame, text, color=(255, 255, 255)):
     )
 
 
-def draw_distance_line(frame, person_bbox, object_bbox, distance_px, identity):
+def draw_distance_line(frame, person_bbox, laptop_bbox, distance_px, identity):
     person_center = bbox_center(person_bbox)
-    object_center = bbox_center(object_bbox)
+    laptop_center = bbox_center(laptop_bbox)
 
     color = (0, 255, 0) if identity == "OWNER" else (0, 0, 255)
 
-    cv2.line(frame, person_center, object_center, color, 2)
+    cv2.line(frame, person_center, laptop_center, color, 2)
     cv2.circle(frame, person_center, 5, color, -1)
-    cv2.circle(frame, object_center, 5, (255, 0, 0), -1)
+    cv2.circle(frame, laptop_center, 5, (255, 0, 0), -1)
 
-    mid_x = int((person_center[0] + object_center[0]) / 2)
-    mid_y = int((person_center[1] + object_center[1]) / 2)
+    mid_x = int((person_center[0] + laptop_center[0]) / 2)
+    mid_y = int((person_center[1] + laptop_center[1]) / 2)
 
     cv2.putText(
         frame,
@@ -503,13 +483,20 @@ def draw_face_box(frame, face_bbox, text="FaceRec"):
 def main():
     args = parse_args()
 
-    print("### RUNNING VERSION: MULTI-PROTECTED OBJECTS ###")
+    # Start the web dashboard in a background thread.
+    # Open http://localhost:8000 in your browser.
+    start_dashboard(host="0.0.0.0", port=8000)
+
+    print("### RUNNING VERSION: OAK LIVE + WEB DASHBOARD ###")
     print(f"[DEBUG] enrollment_seconds={args.enrollment_seconds}")
     print(f"[DEBUG] body_threshold={args.body_threshold}")
     print(f"[DEBUG] fused_threshold={args.fused_threshold}")
+    print(f"[DEBUG] owner_presence_threshold={args.owner_presence_threshold}")
+    print(f"[DEBUG] owner_hold_seconds={args.owner_hold_seconds}")
+    print(f"[DEBUG] guard_px={args.guard_px}")
+    print(f"[DEBUG] contact_px={args.contact_px}")
     print(f"[DEBUG] inference_every={args.inference_every}")
     print(f"[DEBUG] width={args.width}, height={args.height}, fps={args.fps}")
-    print(f"[DEBUG] protected labels={PROTECTED_OBJECT_LABELS}")
 
     clear_owner_data()
 
@@ -537,14 +524,11 @@ def main():
 
     enrollment_done = False
 
-    last_protected_object_bbox = None
-    last_protected_object_label = None
-    last_protected_object_name = None
+    last_laptop_bbox = None
+    protected_laptop_bbox = None
 
-    protected_object_bbox = None
-    protected_object_label = None
-    protected_object_name = None
-
+    owner_last_seen_time = None
+    owner_present = False
     unknown_near_start_time = None
 
     last_alarm_time = -999.0
@@ -605,34 +589,23 @@ def main():
             # -----------------------------------------------------
 
             if run_inference:
-                persons, protected_objects = get_yolo_detections(yolo_model, frame)
+                persons, laptops = get_yolo_detections(yolo_model, frame)
                 faces = detect_faces_with_embeddings(face_model, frame)
                 last_faces = faces
 
-                current_protected_object = (
-                    protected_objects[0] if len(protected_objects) > 0 else None
-                )
+                current_laptop = laptops[0] if len(laptops) > 0 else None
 
-                if current_protected_object is not None:
-                    last_protected_object_bbox = current_protected_object["bbox"]
-                    last_protected_object_label = current_protected_object["label"]
-                    last_protected_object_name = current_protected_object["display_name"]
+                if current_laptop is not None:
+                    last_laptop_bbox = current_laptop["bbox"]
 
-                    if protected_object_bbox is None:
-                        protected_object_bbox = current_protected_object["bbox"]
-                        protected_object_label = current_protected_object["label"]
-                        protected_object_name = current_protected_object["display_name"]
-
-                        print(
-                            f"[ASSET MAPPING] Protected object mapped: "
-                            f"{protected_object_name} at t={elapsed:.2f}s"
-                        )
+                    if protected_laptop_bbox is None:
+                        protected_laptop_bbox = current_laptop["bbox"]
+                        print(f"[ASSET MAPPING] Laptop mapped at t={elapsed:.2f}s")
             else:
                 persons = []
                 faces = last_faces
 
-            protected_bbox_for_logic = last_protected_object_bbox
-            protected_name_for_logic = last_protected_object_name or "OBJECT"
+            laptop_bbox_for_logic = last_laptop_bbox
 
             # -----------------------------------------------------
             # DRAW FACE BOXES
@@ -652,12 +625,12 @@ def main():
                 draw_face_box(frame, face["bbox"], "FaceRec")
 
             # -----------------------------------------------------
-            # DRAW PROTECTED OBJECT + GUARD AREA
+            # DRAW LAPTOP + GUARD AREA
             # -----------------------------------------------------
 
-            if protected_bbox_for_logic is not None:
+            if laptop_bbox_for_logic is not None:
                 guard_bbox = expand_bbox(
-                    protected_bbox_for_logic,
+                    laptop_bbox_for_logic,
                     args.guard_px,
                     frame.shape,
                 )
@@ -672,8 +645,8 @@ def main():
 
                 draw_label(
                     frame,
-                    protected_bbox_for_logic,
-                    f"PROTECTED {protected_name_for_logic}",
+                    laptop_bbox_for_logic,
+                    "PROTECTED LAPTOP",
                     (255, 0, 0),
                 )
 
@@ -757,11 +730,12 @@ def main():
                     print("[MONITORING STARTED]")
                     print(f"Body threshold: {args.body_threshold}")
                     print(f"Fused threshold: {args.fused_threshold}")
+                    print(f"Owner presence threshold: {args.owner_presence_threshold}")
+                    print(f"Owner hold seconds: {args.owner_hold_seconds}")
                     print(f"Inference every: {args.inference_every} frames")
                     print(f"Guard distance in pixels: {args.guard_px}")
                     print(f"Contact distance in pixels: {args.contact_px}")
-                    print(f"Lurker seconds: {args.lurker_seconds}")
-                    print(f"Protected labels: {PROTECTED_OBJECT_LABELS}\n")
+                    print(f"Lurker seconds: {args.lurker_seconds}\n")
 
                 if run_inference:
                     last_person_results = []
@@ -819,28 +793,28 @@ def main():
                             )
 
                         distance_px = None
-                        near_protected_object = False
-                        touching_protected_object = False
+                        near_laptop = False
+                        touching_laptop = False
 
-                        if protected_bbox_for_logic is not None:
+                        if laptop_bbox_for_logic is not None:
                             distance_px = bbox_distance_px(
                                 person["bbox"],
-                                protected_bbox_for_logic,
+                                laptop_bbox_for_logic,
                             )
 
                             person_center = bbox_center(person["bbox"])
                             guard_bbox = expand_bbox(
-                                protected_bbox_for_logic,
+                                laptop_bbox_for_logic,
                                 args.guard_px,
                                 frame.shape,
                             )
 
-                            near_protected_object = (
+                            near_laptop = (
                                 distance_px <= args.guard_px
                                 or point_inside_bbox(person_center, guard_bbox)
                             )
 
-                            touching_protected_object = distance_px <= args.contact_px
+                            touching_laptop = distance_px <= args.contact_px
 
                         last_person_results.append(
                             {
@@ -849,8 +823,8 @@ def main():
                                 "color": color,
                                 "identity": identity,
                                 "distance_px": distance_px,
-                                "near_protected_object": near_protected_object,
-                                "touching_protected_object": touching_protected_object,
+                                "near_laptop": near_laptop,
+                                "touching_laptop": touching_laptop,
                                 "source": source,
                                 "final_score": final_score,
                             }
@@ -861,8 +835,22 @@ def main():
                             f"final={final_score:.3f}"
                         )
 
-                any_unknown_near_protected_object = False
-                any_unknown_touching_protected_object = False
+                owner_seen_now = any(
+                    result["identity"] == "OWNER"
+                    or result.get("final_score", 0.0) >= args.owner_presence_threshold
+                    for result in last_person_results
+                )
+
+                if owner_seen_now:
+                    owner_last_seen_time = now
+
+                owner_present = (
+                    owner_last_seen_time is not None
+                    and now - owner_last_seen_time <= args.owner_hold_seconds
+                )
+
+                any_unknown_near_laptop = False
+                any_unknown_touching_laptop = False
 
                 for result in last_person_results:
                     draw_label(
@@ -873,13 +861,13 @@ def main():
                     )
 
                     if (
-                        protected_bbox_for_logic is not None
+                        laptop_bbox_for_logic is not None
                         and result.get("distance_px") is not None
                     ):
                         draw_distance_line(
                             frame=frame,
                             person_bbox=result["bbox"],
-                            object_bbox=protected_bbox_for_logic,
+                            laptop_bbox=laptop_bbox_for_logic,
                             distance_px=result["distance_px"],
                             identity=result["identity"],
                         )
@@ -888,7 +876,7 @@ def main():
 
                         cv2.putText(
                             frame,
-                            f"dist_to_{protected_name_for_logic}={result['distance_px']:.1f}px",
+                            f"dist_to_laptop={result['distance_px']:.1f}px",
                             (px1, min(frame.shape[0] - 20, py2 + 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
@@ -896,28 +884,33 @@ def main():
                             2,
                         )
 
-                    if result["identity"] == "UNKNOWN":
-                        if result.get("near_protected_object", False):
-                            any_unknown_near_protected_object = True
+                    if not owner_present and result["identity"] == "UNKNOWN":
+                        if result.get("near_laptop", False):
+                            any_unknown_near_laptop = True
 
-                        if result.get("touching_protected_object", False):
-                            any_unknown_touching_protected_object = True
+                        if result.get("touching_laptop", False):
+                            any_unknown_touching_laptop = True
+
+                if owner_present:
+                    any_unknown_near_laptop = False
+                    any_unknown_touching_laptop = False
+                    unknown_near_start_time = None
 
                 # -------------------------------------------------
                 # TOUCHING ALARM
                 # -------------------------------------------------
 
-                if any_unknown_touching_protected_object:
+                if any_unknown_touching_laptop:
                     if now - last_alarm_time >= alarm_cooldown_seconds:
                         trigger_alarm(
-                            f"UNKNOWN person is touching the protected "
-                            f"{protected_name_for_logic}."
+                            "UNKNOWN person is touching the laptop.",
+                            owner_present=owner_present,
                         )
                         last_alarm_time = now
 
                     cv2.putText(
                         frame,
-                        f"ALARM: UNKNOWN TOUCHING {protected_name_for_logic}",
+                        "ALARM: UNKNOWN TOUCHING LAPTOP",
                         (20, 120),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.9,
@@ -929,7 +922,7 @@ def main():
                 # LURKER ALARM
                 # -------------------------------------------------
 
-                if any_unknown_near_protected_object:
+                if any_unknown_near_laptop:
                     if unknown_near_start_time is None:
                         unknown_near_start_time = now
 
@@ -937,7 +930,7 @@ def main():
 
                     cv2.putText(
                         frame,
-                        f"UNKNOWN NEAR {protected_name_for_logic}: {unknown_near_duration:.1f}s",
+                        f"UNKNOWN NEAR LAPTOP: {unknown_near_duration:.1f}s",
                         (20, 160),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.8,
@@ -948,15 +941,17 @@ def main():
                     if unknown_near_duration >= args.lurker_seconds:
                         if now - last_alarm_time >= alarm_cooldown_seconds:
                             trigger_alarm(
-                                f"UNKNOWN person stayed near the protected "
-                                f"{protected_name_for_logic} for "
-                                f"{unknown_near_duration:.1f} seconds."
+                                (
+                                    f"UNKNOWN person stayed near the laptop for "
+                                    f"{unknown_near_duration:.1f} seconds."
+                                ),
+                                owner_present=owner_present,
                             )
                             last_alarm_time = now
 
                         cv2.putText(
                             frame,
-                            f"ALARM: UNKNOWN NEAR {protected_name_for_logic}",
+                            "ALARM: UNKNOWN LURKER NEAR LAPTOP",
                             (20, 200),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.9,
@@ -967,7 +962,80 @@ def main():
                 else:
                     unknown_near_start_time = None
 
-                draw_status(frame, "MONITORING", (255, 255, 255))
+                if owner_present:
+                    draw_status(
+                        frame,
+                        "MONITORING - OWNER PRESENT / RECENTLY SEEN: DISARMED",
+                        (0, 255, 0),
+                    )
+                else:
+                    draw_status(
+                        frame,
+                        f"MONITORING - OWNER ABSENT: ARMED | guard={args.guard_px:.0f}px",
+                        (255, 255, 255),
+                    )
+
+            # -----------------------------------------------------
+            # WEB DASHBOARD UPDATE
+            # -----------------------------------------------------
+            # The dashboard does not read the OAK camera directly.
+            # The main loop sends the already-annotated OpenCV frame
+            # and the current security status to guardian_dashboard.py.
+
+            dashboard_phase = (
+                "ENROLLING"
+                if elapsed <= args.enrollment_seconds
+                else "MONITORING"
+            )
+
+            dashboard_owner_present = (
+                bool(owner_present)
+                if elapsed > args.enrollment_seconds
+                else False
+            )
+
+            dashboard_alarm_active = False
+            dashboard_alarm_reason = ""
+
+            if elapsed > args.enrollment_seconds and not dashboard_owner_present:
+                if (
+                    "any_unknown_touching_laptop" in locals()
+                    and any_unknown_touching_laptop
+                ):
+                    dashboard_alarm_active = True
+                    dashboard_alarm_reason = "UNKNOWN touching laptop"
+
+                elif (
+                    "any_unknown_near_laptop" in locals()
+                    and any_unknown_near_laptop
+                    and "unknown_near_duration" in locals()
+                    and unknown_near_duration >= args.lurker_seconds
+                ):
+                    dashboard_alarm_active = True
+                    dashboard_alarm_reason = (
+                        f"UNKNOWN near laptop for {unknown_near_duration:.1f}s"
+                    )
+
+            dashboard_distance_text = "--"
+
+            for result in last_person_results:
+                if (
+                    result.get("identity") == "UNKNOWN"
+                    and result.get("distance_px") is not None
+                ):
+                    dashboard_distance_text = f"{result['distance_px']:.1f}px"
+                    break
+
+            update_dashboard_frame(frame)
+
+            update_dashboard_status(
+                phase=dashboard_phase,
+                owner_present=dashboard_owner_present,
+                protected_object="LAPTOP",
+                alarm_active=dashboard_alarm_active,
+                alarm_reason=dashboard_alarm_reason,
+                distance_text=dashboard_distance_text,
+            )
 
             cv2.imshow("Desk Guardian - OAK Live Demo", frame)
 
