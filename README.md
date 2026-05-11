@@ -10,16 +10,6 @@ Desk Guardian is designed to help protect personal objects, such as laptops, in 
 
 The system recognizes the owner of the laptop and triggers an alarm if an unknown person interacts with the protected object while the owner is not present.
 
-## Demo
-
-A demo video of the project is available here:
-
-> Add demo video link here
-
-Project slides are available here:
-
-> Add slides link here
-
 ## Key Features
 
 - Real-time video processing with Luxonis / OAK cameras
@@ -74,32 +64,9 @@ Where:
 - DepthAI
 - Luxonis / OAK cameras
 - Computer Vision
-- Edge AI
 - Object Detection
 - Person Re-Identification
 - Real-Time Video Processing
-
-## Repository Structure
-
-A possible structure for the repository is:
-
-```text
-desk-guardian/
-├── src/
-│   ├── main.py
-│   ├── guardian_node.py
-│   ├── detection.py
-│   ├── reid.py
-│   └── utils.py
-├── docs/
-│   └── Desk_Guardian_slides.pdf
-├── media/
-│   └── demo_video.mp4
-├── requirements.txt
-└── README.md
-```
-
-The structure may vary depending on the final organization of the code.
 
 ## Event
 
@@ -117,4 +84,4 @@ The structure may vary depending on the final organization of the code.
 
 ## Notes
 
-This project was developed as a hackathon prototype. The focus was on building a working proof of concept in a limited amount of time, combining computer vision, edge AI and depth-based spatial reasoning.
+This project was developed as a hackathon prototype. The focus was on building a working proof of concept in a limited amount of time, combining computer vision and depth-based spatial reasoning.
